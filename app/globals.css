@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+
+    /* Deep charcoal primary (buttons, headings) */
+    --primary: 0 0% 7%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Soft off-white surfaces */
+    --secondary: 0 0% 98%;
+    --secondary-foreground: 0 0% 7%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
+
+    /* Royal metallic gold accent */
+    --accent: 46 65% 52%;
+    --accent-foreground: 0 0% 7%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Pale silver borders */
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 46 65% 52%;
+
+    --radius: 0.25rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism overlay used for drawers/menus */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl;
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .glass-dark {
+    @apply bg-charcoal/80 backdrop-blur-xl;
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Editorial gold underline hover for links */
+  .link-gold {
+    @apply relative text-charcoal transition-colors hover:text-gold;
+  }
+
+  /* Thin uppercase eyebrow label */
+  .eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground;
+  }
+
+  /* Subtle skeleton shimmer */
+  .shimmer {
+    @apply relative overflow-hidden bg-muted;
+  }
+  .shimmer::after {
+    @apply absolute inset-0 -translate-x-full;
+    content: "";
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}
+
+/* Minimal luxe scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c0c0c0;
+}
