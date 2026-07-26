@@ -6,6 +6,7 @@ import { ProductGrid } from "@/components/product/product-grid";
 import { getCategories } from "@/lib/repositories/categories";
 import {
   getPriceBounds,
+  getProductBrands,
   getProductsByFilters,
 } from "@/lib/repositories/products";
 import type { ShopFilters as Filters } from "@/lib/types";
@@ -26,6 +27,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const filters: Filters = {
     category: param(searchParams.category),
     search: param(searchParams.search),
+    brands: param(searchParams.brands)?.split(",").filter(Boolean),
     sizes: param(searchParams.sizes)?.split(",").filter(Boolean),
     maxPrice: searchParams.maxPrice
       ? Number(param(searchParams.maxPrice))
@@ -34,10 +36,11 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     sort,
   };
 
-  const [products, categories, priceBounds] = await Promise.all([
+  const [products, categories, priceBounds, brands] = await Promise.all([
     getProductsByFilters(filters),
     getCategories(),
     getPriceBounds(),
+    getProductBrands(),
   ]);
 
   const activeCategory = categories.find((c) => c.slug === filters.category);
@@ -65,10 +68,20 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         >
           <ShopFilters
             categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
+            brands={brands}
             priceBounds={priceBounds}
           />
         </Suspense>
         <ProductGrid
+          key={[
+            filters.category ?? "",
+            filters.brands?.join(",") ?? "",
+            filters.sizes?.join(",") ?? "",
+            filters.maxPrice ?? "",
+            filters.inStock ? "1" : "0",
+            filters.search ?? "",
+            filters.sort ?? "",
+          ].join("|")}
           products={products}
           className="grid-cols-2 lg:grid-cols-3"
           emptyMessage="No pieces match your filters. Try adjusting your selection."

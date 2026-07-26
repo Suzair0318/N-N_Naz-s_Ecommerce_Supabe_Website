@@ -21,8 +21,8 @@ interface CartState {
   items: CartItem[];
   isOpen: boolean;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeItem: (variantId: string) => void;
-  updateQuantity: (variantId: string, quantity: number) => void;
+  removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
   clear: () => void;
   setOpen: (open: boolean) => void;
 }
@@ -33,6 +33,49 @@ function normalizeWeight(value: unknown): number {
   return n;
 }
 
+/**
+ * One cart line per product. Same product (any size) merges into a
+ * single row; quantity increases and the latest size/variant wins.
+ */
+function dedupeByProduct(items: CartItem[]): CartItem[] {
+  const map = new Map<string, CartItem>();
+
+  for (const raw of items) {
+    if (!raw?.productId) continue;
+    const item: CartItem = {
+      ...raw,
+      weightGrams: normalizeWeight(raw.weightGrams),
+      quantity: Math.max(1, Number(raw.quantity) || 1),
+      maxStock: Math.max(0, Number(raw.maxStock) || 0),
+    };
+
+    const existing = map.get(item.productId);
+    if (!existing) {
+      map.set(item.productId, {
+        ...item,
+        quantity: Math.min(item.quantity, item.maxStock || item.quantity),
+      });
+      continue;
+    }
+
+    const maxStock = item.maxStock || existing.maxStock;
+    const nextQty = Math.min(
+      existing.quantity + item.quantity,
+      maxStock || existing.quantity + item.quantity
+    );
+
+    map.set(item.productId, {
+      ...existing,
+      ...item,
+      quantity: Math.max(1, nextQty),
+      maxStock,
+      weightGrams: normalizeWeight(item.weightGrams),
+    });
+  }
+
+  return Array.from(map.values());
+}
+
 export const useCart = create<CartState>()(
   persist(
     (set) => ({
@@ -41,23 +84,38 @@ export const useCart = create<CartState>()(
       addItem: (item, quantity = 1) =>
         set((state) => {
           const weightGrams = normalizeWeight(item.weightGrams);
+          const addQty = Math.max(1, quantity);
           const existing = state.items.find(
-            (i) => i.variantId === item.variantId
+            (i) => i.productId === item.productId
           );
+
           if (existing) {
+            const maxStock = item.maxStock || existing.maxStock;
             const nextQty = Math.min(
-              existing.quantity + quantity,
-              item.maxStock
+              existing.quantity + addQty,
+              maxStock || existing.quantity + addQty
             );
             return {
               isOpen: true,
               items: state.items.map((i) =>
-                i.variantId === item.variantId
-                  ? { ...i, quantity: nextQty, weightGrams }
+                i.productId === item.productId
+                  ? {
+                      ...i,
+                      variantId: item.variantId,
+                      size: item.size,
+                      unitPrice: item.unitPrice,
+                      maxStock,
+                      weightGrams,
+                      image: item.image ?? i.image,
+                      slug: item.slug || i.slug,
+                      title: item.title || i.title,
+                      quantity: nextQty,
+                    }
                   : i
               ),
             };
           }
+
           return {
             isOpen: true,
             items: [
@@ -65,23 +123,23 @@ export const useCart = create<CartState>()(
               {
                 ...item,
                 weightGrams,
-                quantity: Math.min(quantity, item.maxStock),
+                quantity: Math.min(addQty, item.maxStock || addQty),
               },
             ],
           };
         }),
-      removeItem: (variantId) =>
+      removeItem: (productId) =>
         set((state) => ({
-          items: state.items.filter((i) => i.variantId !== variantId),
+          items: state.items.filter((i) => i.productId !== productId),
         })),
-      updateQuantity: (variantId, quantity) =>
+      updateQuantity: (productId, quantity) =>
         set((state) => ({
           items: state.items
             .map((i) =>
-              i.variantId === variantId
+              i.productId === productId
                 ? {
                     ...i,
-                    quantity: Math.max(1, Math.min(quantity, i.maxStock)),
+                    quantity: Math.max(1, Math.min(quantity, i.maxStock || quantity)),
                   }
                 : i
             )
@@ -98,12 +156,7 @@ export const useCart = create<CartState>()(
           ...current,
           ...p,
           items: Array.isArray(p.items)
-            ? p.items.map((item) => ({
-                ...item,
-                weightGrams: normalizeWeight(
-                  (item as CartItem).weightGrams
-                ),
-              }))
+            ? dedupeByProduct(p.items as CartItem[])
             : current.items,
         };
       },

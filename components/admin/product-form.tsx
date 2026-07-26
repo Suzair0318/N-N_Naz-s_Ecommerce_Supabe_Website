@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SIZES } from "@/constants/shop";
+import { createCategory } from "@/lib/actions/admin/categories";
 import { createProduct, updateProduct } from "@/lib/actions/admin/products";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils";
@@ -30,19 +31,29 @@ import { productSchema, type ProductFormValues } from "@/lib/validators/product"
 const BUCKET =
   process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "product-images";
 
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 interface ProductFormProps {
-  categories: { id: string; name: string }[];
+  categories: CategoryOption[];
   productId?: string;
   defaultValues?: Partial<ProductFormValues>;
 }
 
 export function ProductForm({
-  categories,
+  categories: initialCategories,
   productId,
   defaultValues,
 }: ProductFormProps) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [categories, setCategories] =
+    useState<CategoryOption[]>(initialCategories);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   const {
     register,
@@ -78,6 +89,40 @@ export function ProductForm({
 
   const images = watch("images");
   const title = watch("title");
+
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("Enter a category name");
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const result = await createCategory(name);
+      if (!result.success || !result.category) {
+        toast.error(result.error ?? "Could not create category");
+        return;
+      }
+
+      setCategories((prev) => {
+        if (prev.some((c) => c.id === result.category!.id)) return prev;
+        return [...prev, result.category!].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+      });
+      setValue("category_id", result.category.id, { shouldValidate: true });
+      setNewCategoryName("");
+      setAddingCategory(false);
+      toast.success(`Category “${result.category.name}” ready`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not create category"
+      );
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -200,29 +245,91 @@ export function ProductForm({
               <p className="text-xs text-destructive">{errors.weight.message}</p>
             )}
           </div>
-          <div className="space-y-1.5">
-            <Label>Category</Label>
-            <Controller
-              control={control}
-              name="category_id"
-              render={({ field }) => (
-                <Select
-                  value={field.value ?? undefined}
-                  onValueChange={field.onChange}
+          <div className="space-y-1.5 sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Category</Label>
+              {!addingCategory && (
+                <button
+                  type="button"
+                  onClick={() => setAddingCategory(true)}
+                  className="text-xs uppercase tracking-wide text-muted-foreground hover:text-charcoal"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  + New category
+                </button>
               )}
-            />
+            </div>
+
+            {addingCategory ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Loungewear"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void handleCreateCategory();
+                    }
+                    if (e.key === "Escape") {
+                      setAddingCategory(false);
+                      setNewCategoryName("");
+                    }
+                  }}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void handleCreateCategory()}
+                    disabled={creatingCategory}
+                  >
+                    {creatingCategory && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    Add
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setAddingCategory(false);
+                      setNewCategoryName("");
+                    }}
+                    disabled={creatingCategory}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Controller
+                control={control}
+                name="category_id"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? "none"}
+                    onValueChange={(v) =>
+                      field.onChange(v === "none" ? null : v)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No category</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Pick an existing category, or add a new one for future products.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:col-span-2">
             <div className="space-y-1.5">

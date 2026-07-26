@@ -34,6 +34,7 @@ export interface OrderWithItems extends Order {
 export interface ShopFilters {
   category?: string;
   search?: string;
+  brands?: string[];
   sizes?: string[];
   minPrice?: number;
   maxPrice?: number;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { PRICE_FILTER_MAX } from "@/constants/shop";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ProductCardData,
@@ -72,12 +73,12 @@ export async function getProductsByFilters(
     query = query.ilike("title", `%${filters.search}%`);
   }
 
-  if (typeof filters.minPrice === "number") {
-    query = query.gte("base_price", filters.minPrice);
+  if (filters.brands?.length) {
+    query = query.in("brand_name", filters.brands);
   }
-  if (typeof filters.maxPrice === "number") {
-    query = query.lte("base_price", filters.maxPrice);
-  }
+
+  // Price filtering is applied after fetch using selling price
+  // (discount_price ?? base_price) so it matches shop card prices.
 
   switch (filters.sort) {
     case "price-asc":
@@ -97,6 +98,20 @@ export async function getProductsByFilters(
   }
 
   let products = (data as unknown as ProductCardData[]) ?? [];
+
+  // Price filter uses the selling price shown on cards (discount if set).
+  if (typeof filters.maxPrice === "number") {
+    products = products.filter((p) => {
+      const price = Number(p.discount_price ?? p.base_price);
+      return price <= filters.maxPrice!;
+    });
+  }
+  if (typeof filters.minPrice === "number") {
+    products = products.filter((p) => {
+      const price = Number(p.discount_price ?? p.base_price);
+      return price >= filters.minPrice!;
+    });
+  }
 
   // Variant-derived filters are applied in-memory (nested filtering on
   // related rows is limited via PostgREST).
@@ -140,18 +155,29 @@ export async function getProductBySlug(
 }
 
 export async function getPriceBounds(): Promise<{ min: number; max: number }> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("base_price")
-    .eq("is_active", true);
+  return { min: 0, max: PRICE_FILTER_MAX };
+}
 
-  const prices = (data ?? []).map((p) => Number(p.base_price));
-  if (prices.length === 0) return { min: 0, max: 1000 };
-  return {
-    min: 0,
-    max: Math.ceil(Math.max(...prices) / 10) * 10,
-  };
+/** Distinct brand names from active products (sorted). */
+export async function getProductBrands(): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("brand_name")
+    .eq("is_active", true)
+    .not("brand_name", "is", null);
+
+  if (error) {
+    console.error("[products] getProductBrands failed:", error.message);
+    return [];
+  }
+
+  const brands = new Set<string>();
+  for (const row of data ?? []) {
+    const name = row.brand_name?.trim();
+    if (name) brands.add(name);
+  }
+  return Array.from(brands).sort((a, b) => a.localeCompare(b));
 }
 
 export async function getAllProductSlugs(): Promise<string[]> {

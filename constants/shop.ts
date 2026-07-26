@@ -28,6 +28,9 @@ export type PakistanCity = (typeof PAKISTAN_CITIES)[number];
 export const SIZES = ["XS", "S", "M", "L", "XL", "Custom"] as const;
 export const CURRENCY = "PKR";
 
+/** Max price slider ceiling on shop filters (PKR). */
+export const PRICE_FILTER_MAX = 100_000;
+
 /** Base rate by city (1st kg). */
 export function getBaseShippingFee(city: string | null | undefined): number {
   if (!city) return SHIPPING_OTHER;

@@ -110,7 +110,9 @@ export default function CheckoutPage() {
     setSubmitting(false);
 
     if (!result.success) {
-      toast.error(result.error ?? "Something went wrong");
+      toast.error(result.error ?? "Something went wrong", {
+        duration: 6000,
+      });
       return;
     }
 
@@ -352,7 +354,7 @@ export default function CheckoutPage() {
           <div className="max-h-72 space-y-4 overflow-y-auto">
             {mounted &&
               items.map((item) => (
-                <div key={item.variantId} className="flex gap-3">
+                <div key={item.productId} className="flex gap-3">
                   <div className="relative h-16 w-14 shrink-0 overflow-hidden bg-muted">
                     {item.image && (
                       <Image

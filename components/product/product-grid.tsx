@@ -18,6 +18,7 @@ export function ProductGrid({
   emptyMessage = "No products found.",
 }: ProductGridProps) {
   const reduceMotion = useReducedMotion();
+  const listKey = products.map((p) => p.id).join("|");
 
   if (products.length === 0) {
     return (
@@ -50,14 +51,14 @@ export function ProductGrid({
     },
   };
 
+  const gridClass = cn(
+    "grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4",
+    className
+  );
+
   if (reduceMotion) {
     return (
-      <div
-        className={cn(
-          "grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4",
-          className
-        )}
-      >
+      <div className={gridClass}>
         {products.map((product, i) => (
           <ProductCard key={product.id} product={product} priority={i < 4} />
         ))}
@@ -67,14 +68,11 @@ export function ProductGrid({
 
   return (
     <motion.div
-      className={cn(
-        "grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4",
-        className
-      )}
+      key={listKey}
+      className={gridClass}
       variants={container}
       initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.1, margin: "-40px" }}
+      animate="show"
     >
       {products.map((product, i) => (
         <motion.div key={product.id} variants={item}>

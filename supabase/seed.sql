@@ -1,40 +1,33 @@
 -- =============================================================
 -- Naz's Collection — Seed data (optional demo content)
 -- Safe to run multiple times (uses stable UUIDs + upserts).
+-- Categories are created from Admin → New category (not seeded).
 -- =============================================================
-
--- ---------------- Categories ----------------
-insert into public.categories (id, name, slug, image_url) values
-  ('11111111-1111-1111-1111-111111111101', 'Dresses',   'dresses',   'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1200&q=80'),
-  ('11111111-1111-1111-1111-111111111102', 'Outerwear', 'outerwear', 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=80'),
-  ('11111111-1111-1111-1111-111111111103', 'Knitwear',  'knitwear',  'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=1200&q=80'),
-  ('11111111-1111-1111-1111-111111111104', 'Tailoring', 'tailoring', 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=1200&q=80')
-on conflict (id) do update set
-  name = excluded.name, slug = excluded.slug, image_url = excluded.image_url;
 
 -- ---------------- Products ----------------
 insert into public.products (id, title, slug, description, brand_name, weight, category_id, base_price, discount_price, featured, is_active) values
   ('22222222-2222-2222-2222-222222222201', 'Silk Slip Midi Dress', 'silk-slip-midi-dress',
     'A fluid bias-cut midi in pure mulberry silk. Cut to skim the body with an elegant cowl neckline.',
-    'Maison Luxe', 280, '11111111-1111-1111-1111-111111111101', 289.00, 229.00, true, true),
+    'Maison Luxe', 280, null, 289.00, 229.00, true, true),
   ('22222222-2222-2222-2222-222222222202', 'Wool Wrap Coat', 'wool-wrap-coat',
     'A timeless double-faced wool coat with a self-tie belt and dropped shoulders for a relaxed drape.',
-    'Nord & Co', 920, '11111111-1111-1111-1111-111111111102', 549.00, null, true, true),
+    'Nord & Co', 920, null, 549.00, null, true, true),
   ('22222222-2222-2222-2222-222222222203', 'Cashmere Rib Sweater', 'cashmere-rib-sweater',
     'Featherweight cashmere in a fine rib knit. An everyday luxury with a soft mock neck.',
-    'Soft Form', 320, '11111111-1111-1111-1111-111111111103', 219.00, null, true, true),
+    'Soft Form', 320, null, 219.00, null, true, true),
   ('22222222-2222-2222-2222-222222222204', 'Tailored Wide-Leg Trouser', 'tailored-wide-leg-trouser',
     'High-rise wide-leg trousers in a crisp Italian wool blend with a pressed crease.',
-    'Atelier Lane', 450, '11111111-1111-1111-1111-111111111104', 199.00, 159.00, true, true),
+    'Atelier Lane', 450, null, 199.00, 159.00, true, true),
   ('22222222-2222-2222-2222-222222222205', 'Satin Column Gown', 'satin-column-gown',
     'A floor-sweeping column gown in liquid satin with a subtle thigh-high slit.',
-    'Maison Luxe', 510, '11111111-1111-1111-1111-111111111101', 429.00, null, false, true),
+    'Maison Luxe', 510, null, 429.00, null, false, true),
   ('22222222-2222-2222-2222-222222222206', 'Belted Trench Coat', 'belted-trench-coat',
     'A modern take on the classic trench in water-resistant cotton gabardine.',
-    'Nord & Co', 780, '11111111-1111-1111-1111-111111111102', 389.00, 329.00, false, true)
+    'Nord & Co', 780, null, 389.00, 329.00, false, true)
 on conflict (id) do update set
   title = excluded.title, description = excluded.description,
   brand_name = excluded.brand_name, weight = excluded.weight,
+  category_id = excluded.category_id,
   base_price = excluded.base_price, discount_price = excluded.discount_price,
   featured = excluded.featured, is_active = excluded.is_active;
 

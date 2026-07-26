@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Filter, Search, X } from "lucide-react";
 
@@ -26,10 +26,60 @@ interface Category {
 
 interface ShopFiltersProps {
   categories: Category[];
+  brands: string[];
   priceBounds: { min: number; max: number };
 }
 
-export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
+interface FilterDraft {
+  category: string;
+  brands: string[];
+  sizes: string[];
+  inStock: boolean;
+  maxPrice: number;
+}
+
+function parseList(value: string | null) {
+  return (value ?? "").split(",").filter(Boolean);
+}
+
+function draftFromParams(
+  searchParams: URLSearchParams,
+  priceMax: number
+): FilterDraft {
+  return {
+    category: searchParams.get("category") ?? "",
+    brands: parseList(searchParams.get("brands")),
+    sizes: parseList(searchParams.get("sizes")),
+    inStock: searchParams.get("inStock") === "true",
+    maxPrice: Number(searchParams.get("maxPrice") ?? priceMax),
+  };
+}
+
+function draftHasFilters(draft: FilterDraft, priceMax: number) {
+  return Boolean(
+    draft.category ||
+      draft.brands.length ||
+      draft.sizes.length ||
+      draft.inStock ||
+      draft.maxPrice < priceMax
+  );
+}
+
+function draftActiveCount(draft: FilterDraft, priceMax: number) {
+  return (
+    (draft.category ? 1 : 0) +
+    (draft.brands.length > 0 ? 1 : 0) +
+    (draft.sizes.length > 0 ? 1 : 0) +
+    (draft.inStock ? 1 : 0) +
+    (draft.maxPrice < priceMax ? 1 : 0)
+  );
+}
+
+export function ShopFilters({
+  categories,
+  brands,
+  priceBounds,
+}: ShopFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -38,79 +88,104 @@ export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
     searchParams.get("search") ?? ""
   );
 
-  const selectedCategory = searchParams.get("category") ?? "";
-  const selectedSizes = useMemo(
-    () => new Set((searchParams.get("sizes") ?? "").split(",").filter(Boolean)),
-    [searchParams]
+  const applied = useMemo(
+    () => draftFromParams(searchParams, priceBounds.max),
+    [searchParams, priceBounds.max]
   );
-  const inStock = searchParams.get("inStock") === "true";
-  const maxPrice = Number(searchParams.get("maxPrice") ?? priceBounds.max);
 
-  const setParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === null || value === "") params.delete(key);
-        else params.set(key, value);
+  const [draft, setDraft] = useState<FilterDraft>(applied);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  // Sync draft from URL only while the sheet is closed (after navigation settles).
+  useEffect(() => {
+    if (open) return;
+    setDraft(applied);
+  }, [applied, open]);
+
+  useEffect(() => {
+    setSearchValue(searchParams.get("search") ?? "");
+  }, [searchParams]);
+
+  const appliedCount = draftActiveCount(applied, priceBounds.max);
+
+  const applyDraft = useCallback(
+    (next: FilterDraft, search?: string | null) => {
+      const params = new URLSearchParams();
+
+      const q =
+        search !== undefined
+          ? search?.trim() || null
+          : searchParams.get("search")?.trim() || null;
+      if (q) params.set("search", q);
+
+      if (next.category) params.set("category", next.category);
+      if (next.brands.length) {
+        params.set("brands", next.brands.join(","));
       }
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      if (next.sizes.length) params.set("sizes", next.sizes.join(","));
+      if (next.inStock) params.set("inStock", "true");
+      if (next.maxPrice < priceBounds.max) {
+        params.set("maxPrice", String(next.maxPrice));
+      }
+
+      const sort = searchParams.get("sort");
+      if (sort) params.set("sort", sort);
+
+      const qs = params.toString();
+      const href = qs ? `${pathname}?${qs}` : pathname;
+      const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+
+      if (href === current) {
+        // Same URL — still force a server refresh so results reload.
+        router.refresh();
+        return;
+      }
+
+      router.replace(href, { scroll: false });
     },
-    [pathname, router, searchParams]
+    [pathname, priceBounds.max, router, searchParams]
   );
 
-  const toggleSet = (set: Set<string>, value: string) => {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    return Array.from(next).join(",");
+  const openSheet = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraft(draftFromParams(searchParams, priceBounds.max));
+    }
+    setOpen(nextOpen);
   };
-
-  const hasActiveFilters = Boolean(
-    selectedCategory ||
-      selectedSizes.size ||
-      inStock ||
-      searchParams.get("maxPrice") ||
-      searchParams.get("search")
-  );
-
-  const activeFilterCount = [
-    selectedCategory ? 1 : 0,
-    selectedSizes.size > 0 ? 1 : 0,
-    inStock ? 1 : 0,
-    searchParams.get("maxPrice") ? 1 : 0,
-  ].reduce((a, b) => a + b, 0);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setParams({ search: searchValue.trim() || null });
+    applyDraft(applied, searchValue.trim() || null);
   };
 
-  const clearFilters = () => {
+  const emptyDraft = (): FilterDraft => ({
+    category: "",
+    brands: [],
+    sizes: [],
+    inStock: false,
+    maxPrice: priceBounds.max,
+  });
+
+  const clearApplied = () => {
     setSearchValue("");
-    router.push(pathname, { scroll: false });
+    const cleared = emptyDraft();
+    setDraft(cleared);
+    router.replace(pathname, { scroll: false });
   };
 
-  const panel = (
-    <FilterPanel
-      categories={categories}
-      priceBounds={priceBounds}
-      selectedCategory={selectedCategory}
-      selectedSizes={selectedSizes}
-      inStock={inStock}
-      maxPrice={maxPrice}
-      hasActiveFilters={hasActiveFilters}
-      onClear={clearFilters}
-      onSetParams={setParams}
-      onToggleSize={(size) =>
-        setParams({ sizes: toggleSet(selectedSizes, size) || null })
-      }
-      checkboxIdPrefix="desktop"
-    />
-  );
+  const showResults = () => {
+    const snapshot: FilterDraft = {
+      ...draftRef.current,
+      brands: [...draftRef.current.brands],
+      sizes: [...draftRef.current.sizes],
+    };
+    setOpen(false);
+    applyDraft(snapshot);
+  };
 
   return (
     <div className="contents">
-      {/* Mobile: search + filter button */}
       <div className="mb-2 flex gap-2 lg:hidden">
         <form onSubmit={submitSearch} className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -122,7 +197,7 @@ export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
           />
         </form>
 
-        <Sheet open={open} onOpenChange={setOpen}>
+        <Sheet open={open} onOpenChange={openSheet}>
           <SheetTrigger asChild>
             <Button
               variant="outline"
@@ -131,9 +206,9 @@ export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
               aria-label="Open filters"
             >
               <Filter className="h-4 w-4" />
-              {activeFilterCount > 0 && (
+              {appliedCount > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center bg-charcoal px-1 text-[10px] text-white">
-                  {activeFilterCount}
+                  {appliedCount}
                 </span>
               )}
             </Button>
@@ -148,23 +223,21 @@ export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
             <div className="flex-1 overflow-y-auto p-5">
               <FilterPanel
                 categories={categories}
+                brands={brands}
                 priceBounds={priceBounds}
-                selectedCategory={selectedCategory}
-                selectedSizes={selectedSizes}
-                inStock={inStock}
-                maxPrice={maxPrice}
-                hasActiveFilters={hasActiveFilters}
-                onClear={clearFilters}
-                onSetParams={setParams}
-                onToggleSize={(size) =>
-                  setParams({ sizes: toggleSet(selectedSizes, size) || null })
-                }
+                draft={draft}
+                onDraftChange={setDraft}
                 checkboxIdPrefix="mobile"
                 hideTitle
+                onClearDraft={() => {
+                  setDraft(emptyDraft());
+                  clearApplied();
+                  setOpen(false);
+                }}
               />
             </div>
             <div className="border-t border-border p-4">
-              <Button className="w-full" onClick={() => setOpen(false)}>
+              <Button className="w-full" onClick={showResults}>
                 Show results
               </Button>
             </div>
@@ -172,50 +245,153 @@ export function ShopFilters({ categories, priceBounds }: ShopFiltersProps) {
         </Sheet>
       </div>
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block">{panel}</aside>
+      <aside className="hidden lg:block">
+        <DesktopFilters
+          categories={categories}
+          brands={brands}
+          priceBounds={priceBounds}
+          applied={applied}
+          onApply={applyDraft}
+          onClear={clearApplied}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function DesktopFilters({
+  categories,
+  brands,
+  priceBounds,
+  applied,
+  onApply,
+  onClear,
+}: {
+  categories: Category[];
+  brands: string[];
+  priceBounds: { min: number; max: number };
+  applied: FilterDraft;
+  onApply: (draft: FilterDraft) => void;
+  onClear: () => void;
+}) {
+  const [draft, setDraft] = useState(applied);
+
+  useEffect(() => {
+    setDraft(applied);
+  }, [applied]);
+
+  const dirty =
+    draft.category !== applied.category ||
+    draft.inStock !== applied.inStock ||
+    draft.maxPrice !== applied.maxPrice ||
+    draft.brands.join(",") !== applied.brands.join(",") ||
+    draft.sizes.join(",") !== applied.sizes.join(",");
+
+  return (
+    <div className="space-y-6">
+      <FilterPanel
+        categories={categories}
+        brands={brands}
+        priceBounds={priceBounds}
+        draft={draft}
+        onDraftChange={setDraft}
+        checkboxIdPrefix="desktop"
+        showClear={draftHasFilters(draft, priceBounds.max)}
+        onClearDraft={() => {
+          setDraft({
+            category: "",
+            brands: [],
+            sizes: [],
+            inStock: false,
+            maxPrice: priceBounds.max,
+          });
+          onClear();
+        }}
+      />
+      <div className="space-y-2">
+        <Button
+          className="w-full"
+          onClick={() => onApply(draft)}
+          disabled={!dirty}
+        >
+          Apply filters
+        </Button>
+        {draftHasFilters(applied, priceBounds.max) && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="w-full text-center text-xs uppercase tracking-widest text-muted-foreground hover:text-charcoal"
+          >
+            Reset all
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 function FilterPanel({
   categories,
+  brands,
   priceBounds,
-  selectedCategory,
-  selectedSizes,
-  inStock,
-  maxPrice,
-  hasActiveFilters,
-  onClear,
-  onSetParams,
-  onToggleSize,
+  draft,
+  onDraftChange,
   checkboxIdPrefix,
   hideTitle = false,
+  showClear,
+  onClearDraft,
 }: {
   categories: Category[];
+  brands: string[];
   priceBounds: { min: number; max: number };
-  selectedCategory: string;
-  selectedSizes: Set<string>;
-  inStock: boolean;
-  maxPrice: number;
-  hasActiveFilters: boolean;
-  onClear: () => void;
-  onSetParams: (updates: Record<string, string | null>) => void;
-  onToggleSize: (size: string) => void;
+  draft: FilterDraft;
+  onDraftChange: (draft: FilterDraft) => void;
   checkboxIdPrefix: string;
   hideTitle?: boolean;
+  showClear?: boolean;
+  onClearDraft?: () => void;
 }) {
   const stockId = `${checkboxIdPrefix}-inStock`;
+  const brandSet = useMemo(() => new Set(draft.brands), [draft.brands]);
+  const sizeSet = useMemo(() => new Set(draft.sizes), [draft.sizes]);
+  const canClear = showClear ?? draftHasFilters(draft, priceBounds.max);
+
+  const toggleBrand = (brand: string, checked: boolean) => {
+    const next = new Set(brandSet);
+    if (checked) next.add(brand);
+    else next.delete(brand);
+    onDraftChange({ ...draft, brands: Array.from(next) });
+  };
+
+  const toggleSize = (size: string) => {
+    // Single-select: tap again to clear, otherwise replace.
+    const next = draft.sizes[0] === size ? [] : [size];
+    onDraftChange({ ...draft, sizes: next });
+  };
+
+  const clearDraft = () => {
+    if (onClearDraft) {
+      onClearDraft();
+      return;
+    }
+    onDraftChange({
+      category: "",
+      brands: [],
+      sizes: [],
+      inStock: false,
+      maxPrice: priceBounds.max,
+    });
+  };
 
   return (
     <div className="space-y-8">
       {!hideTitle && (
         <div className="flex items-center justify-between">
           <h3 className="font-serif text-lg">Filters</h3>
-          {hasActiveFilters && (
+          {canClear && (
             <button
               type="button"
-              onClick={onClear}
+              onClick={clearDraft}
               className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground hover:text-charcoal"
             >
               <X className="h-3 w-3" /> Clear
@@ -224,10 +400,10 @@ function FilterPanel({
         </div>
       )}
 
-      {hideTitle && hasActiveFilters && (
+      {hideTitle && canClear && (
         <button
           type="button"
-          onClick={onClear}
+          onClick={clearDraft}
           className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground hover:text-charcoal"
         >
           <X className="h-3 w-3" /> Clear all
@@ -240,10 +416,10 @@ function FilterPanel({
           <li>
             <button
               type="button"
-              onClick={() => onSetParams({ category: null })}
+              onClick={() => onDraftChange({ ...draft, category: "" })}
               className={cn(
                 "text-sm",
-                !selectedCategory ? "text-gold" : "text-charcoal hover:text-gold"
+                !draft.category ? "text-gold" : "text-charcoal hover:text-gold"
               )}
             >
               All
@@ -253,10 +429,10 @@ function FilterPanel({
             <li key={c.slug}>
               <button
                 type="button"
-                onClick={() => onSetParams({ category: c.slug })}
+                onClick={() => onDraftChange({ ...draft, category: c.slug })}
                 className={cn(
                   "text-sm",
-                  selectedCategory === c.slug
+                  draft.category === c.slug
                     ? "text-gold"
                     : "text-charcoal hover:text-gold"
                 )}
@@ -268,6 +444,32 @@ function FilterPanel({
         </ul>
       </div>
 
+      {brands.length > 0 && (
+        <div className="space-y-3 border-t border-border pt-6">
+          <p className="eyebrow">Brand</p>
+          <ul className="space-y-2.5">
+            {brands.map((brand) => {
+              const id = `${checkboxIdPrefix}-brand-${brand.replace(/\s+/g, "-").toLowerCase()}`;
+              const checked = brandSet.has(brand);
+              return (
+                <li key={brand} className="flex items-center gap-3">
+                  <Checkbox
+                    id={id}
+                    checked={checked}
+                    onCheckedChange={(value) =>
+                      toggleBrand(brand, value === true)
+                    }
+                  />
+                  <label htmlFor={id} className="cursor-pointer text-sm">
+                    {brand}
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="space-y-3 border-t border-border pt-6">
         <p className="eyebrow">Size</p>
         <div className="flex flex-wrap gap-2">
@@ -275,10 +477,10 @@ function FilterPanel({
             <button
               key={size}
               type="button"
-              onClick={() => onToggleSize(size)}
+              onClick={() => toggleSize(size)}
               className={cn(
                 "min-w-[2.75rem] border px-2 py-1.5 text-xs",
-                selectedSizes.has(size)
+                sizeSet.has(size)
                   ? "border-charcoal bg-charcoal text-white"
                   : "border-border hover:border-charcoal"
               )}
@@ -293,27 +495,25 @@ function FilterPanel({
         <div className="flex items-center justify-between">
           <p className="eyebrow">Max Price</p>
           <span className="text-sm text-muted-foreground">
-            {formatPrice(maxPrice)}
+            {formatPrice(draft.maxPrice)}
           </span>
         </div>
         <Slider
           min={priceBounds.min}
           max={priceBounds.max}
-          step={10}
-          value={[maxPrice]}
-          onValueChange={([v]) =>
-            onSetParams({
-              maxPrice: v >= priceBounds.max ? null : String(v),
-            })
-          }
+          step={1}
+          value={[draft.maxPrice]}
+          onValueChange={([v]) => onDraftChange({ ...draft, maxPrice: v })}
         />
       </div>
 
       <div className="flex items-center gap-3 border-t border-border pt-6">
         <Checkbox
           id={stockId}
-          checked={inStock}
-          onCheckedChange={(v) => onSetParams({ inStock: v ? "true" : null })}
+          checked={draft.inStock}
+          onCheckedChange={(v) =>
+            onDraftChange({ ...draft, inStock: Boolean(v) })
+          }
         />
         <label htmlFor={stockId} className="text-sm">
           In stock only

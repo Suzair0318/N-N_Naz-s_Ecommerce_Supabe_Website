@@ -1,28 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Heart, Minus, Plus, Ruler, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Heart, Minus, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { BlurFade } from "@/components/motion/blur-fade";
 import { Price } from "@/components/product/price";
+import { ProductReviews } from "@/components/product/product-reviews";
 import { SizeSelector } from "@/components/product/size-selector";
 import { cn } from "@/lib/utils";
 import type { ProductWithRelations } from "@/lib/types";
@@ -30,6 +19,7 @@ import { useCart } from "@/store/cart";
 import { useWishlist } from "@/store/wishlist";
 
 export function ProductDetail({ product }: { product: ProductWithRelations }) {
+  const router = useRouter();
   const reduceMotion = useReducedMotion();
   const addItem = useCart((s) => s.addItem);
   const toggleWishlist = useWishlist((s) => s.toggle);
@@ -93,6 +83,21 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
 
   return (
     <div className="container max-w-full overflow-x-hidden py-10">
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+            return;
+          }
+          router.push("/shop");
+        }}
+        className="mb-6 inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-charcoal"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
       <div className="grid w-full min-w-0 gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <motion.div
@@ -194,46 +199,7 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
 
           {/* Size */}
           <div className="mt-8">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-medium">Size</span>
-              <Dialog>
-                <DialogTrigger className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground hover:text-charcoal">
-                  <Ruler className="h-3.5 w-3.5" /> Size Guide
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Size Guide</DialogTitle>
-                  </DialogHeader>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-left">
-                        <th className="py-2">Size</th>
-                        <th className="py-2">Bust (in)</th>
-                        <th className="py-2">Waist (in)</th>
-                        <th className="py-2">Hips (in)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-muted-foreground">
-                      {[
-                        ["XS", "31-32", "24-25", "34-35"],
-                        ["S", "33-34", "26-27", "36-37"],
-                        ["M", "35-36", "28-29", "38-39"],
-                        ["L", "37-39", "30-32", "40-42"],
-                        ["XL", "40-42", "33-35", "43-45"],
-                      ].map((row) => (
-                        <tr key={row[0]} className="border-b border-border">
-                          {row.map((cell, i) => (
-                            <td key={i} className="py-2">
-                              {cell}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </DialogContent>
-              </Dialog>
-            </div>
+            <span className="mb-3 block text-sm font-medium">Size</span>
             <SizeSelector
               options={sizeOptions}
               selected={selectedSize}
@@ -298,33 +264,10 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
               Only {maxStock} left — order soon
             </p>
           )}
-
-          {/* Accordions */}
-          <Accordion type="single" collapsible className="mt-10">
-            <AccordionItem value="fabric">
-              <AccordionTrigger>Fabric &amp; Details</AccordionTrigger>
-              <AccordionContent>
-                Crafted from premium, responsibly sourced materials. Each piece
-                is finished by hand for an impeccable drape and lasting quality.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="shipping">
-              <AccordionTrigger>Shipping &amp; Returns</AccordionTrigger>
-              <AccordionContent>
-                Complimentary shipping on orders over $150. Free 30-day returns
-                on all unworn items with tags attached.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="care">
-              <AccordionTrigger>Care Instructions</AccordionTrigger>
-              <AccordionContent>
-                Dry clean only or hand wash cold. Lay flat to dry. Cool iron if
-                needed. Store on a padded hanger to preserve shape.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </BlurFade>
       </div>
+
+      <ProductReviews productId={product.id} productTitle={product.title} />
     </div>
   );
 }

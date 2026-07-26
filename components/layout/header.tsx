@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -22,7 +23,39 @@ interface NavCategory {
   slug: string;
 }
 
-export function Header({ categories }: { categories: NavCategory[] }) {
+export interface HeaderUser {
+  fullName: string | null;
+  email: string;
+  role: string;
+}
+
+function getDisplayName(user: HeaderUser) {
+  const fromName = user.fullName?.trim().split(/\s+/)[0];
+  if (fromName) return fromName;
+  const local = user.email.split("@")[0];
+  return local || "Account";
+}
+
+function getInitials(user: HeaderUser) {
+  const name = user.fullName?.trim();
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (user.email) return user.email.slice(0, 2).toUpperCase();
+  return "ME";
+}
+
+export function Header({
+  categories,
+  user,
+}: {
+  categories: NavCategory[];
+  user: HeaderUser | null;
+}) {
   const router = useRouter();
   const setCartOpen = useCart((s) => s.setOpen);
   const items = useCart((s) => s.items);
@@ -41,6 +74,8 @@ export function Header({ categories }: { categories: NavCategory[] }) {
 
   const cartCount = mounted ? selectItemCount(items) : 0;
   const wishlistCount = mounted ? wishlistItems.length : 0;
+  const displayName = user ? getDisplayName(user) : null;
+  const initials = user ? getInitials(user) : null;
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +117,44 @@ export function Header({ categories }: { categories: NavCategory[] }) {
                   </Link>
                 ))}
               </nav>
+
+              <div className="mt-10 border-t border-border pt-6">
+                {user ? (
+                  <div className="space-y-3">
+                    <Link
+                      href="/account"
+                      className="flex items-center gap-3 text-sm"
+                    >
+                      <span className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold bg-gold/15 text-xs font-medium tracking-wide text-charcoal">
+                        {initials}
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500"
+                          aria-hidden
+                        />
+                      </span>
+                      <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                        Signed in
+                      </span>
+                    </Link>
+                    {user.role === "admin" && (
+                      <Link
+                        href="/admin/dashboard"
+                        className="block text-xs uppercase tracking-widest text-gold"
+                      >
+                        Admin panel
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-2 text-sm uppercase tracking-widest link-gold"
+                  >
+                    <User className="h-4 w-4" />
+                    Sign in
+                  </Link>
+                )}
+              </div>
             </SheetContent>
           </Sheet>
         </div>
@@ -105,13 +178,23 @@ export function Header({ categories }: { categories: NavCategory[] }) {
         {/* Logo */}
         <Link
           href="/"
-          className="absolute left-1/2 -translate-x-1/2 font-serif text-xl tracking-[0.2em] text-gold sm:text-2xl"
+          className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+          aria-label="Naz's Collection — Home"
         >
-          NAZ&apos;S
+          <span className="relative block h-11 w-11 overflow-hidden rounded-full border border-gold/40 bg-charcoal shadow-sm sm:h-12 sm:w-12">
+            <Image
+              src="/nazs-logo.png"
+              alt="Naz's Collection"
+              fill
+              priority
+              sizes="48px"
+              className="object-cover object-center"
+            />
+          </span>
         </Link>
 
         {/* Right actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <form onSubmit={submitSearch} className="hidden items-center md:flex">
             <div className="flex items-center border-b border-border">
               <Search className="h-4 w-4 text-muted-foreground" />
@@ -124,9 +207,55 @@ export function Header({ categories }: { categories: NavCategory[] }) {
             </div>
           </form>
 
-          <Link href="/account" aria-label="Account" className="hidden sm:block">
-            <User className="h-5 w-5 transition-colors hover:text-gold" />
-          </Link>
+          {user ? (
+            <Link
+              href="/account"
+              className="group relative hidden sm:flex"
+              aria-label={`Signed in as ${displayName}`}
+              title={`Signed in as ${user.email || displayName}`}
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold bg-gold/15 text-[11px] font-medium tracking-wide text-charcoal transition-colors group-hover:bg-gold/25">
+                {initials}
+              </span>
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500"
+                aria-hidden
+              />
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="hidden items-center gap-1.5 text-xs uppercase tracking-widest link-gold sm:flex"
+            >
+              <User className="h-4 w-4" />
+              Sign in
+            </Link>
+          )}
+
+          {/* Compact auth control for very small screens */}
+          {user ? (
+            <Link
+              href="/account"
+              aria-label={`Signed in as ${displayName}`}
+              className="relative sm:hidden"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold bg-gold/15 text-[11px] font-medium text-charcoal">
+                {initials}
+              </span>
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500"
+                aria-hidden
+              />
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              aria-label="Sign in"
+              className="sm:hidden"
+            >
+              <User className="h-5 w-5 transition-colors hover:text-gold" />
+            </Link>
+          )}
 
           <Link href="/wishlist" aria-label="Wishlist" className="relative">
             <Heart className="h-5 w-5 transition-colors hover:text-gold" />

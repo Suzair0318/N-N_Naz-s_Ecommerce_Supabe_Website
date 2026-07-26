@@ -9,8 +9,8 @@ import { NewsletterForm } from "@/components/layout/newsletter-form";
 const shopLinks = [
   { label: "All Products", href: "/shop" },
   { label: "New Arrivals", href: "/shop?sort=newest" },
-  { label: "Dresses", href: "/shop?category=dresses" },
-  { label: "Outerwear", href: "/shop?category=outerwear" },
+  { label: "Sale", href: "/shop" },
+  { label: "Account", href: "/account" },
 ];
 
 const helpLinks = [
@@ -43,8 +43,8 @@ export function Footer() {
   const columns = (
     <>
       <FooterCol variants={reduceMotion ? undefined : item}>
-        <p className="font-serif text-2xl tracking-[0.2em] text-gold">
-          NAZ&apos;S
+        <p className="font-serif text-xl tracking-wide text-gold sm:text-2xl">
+          N&amp;N Naz&apos;s Collection
         </p>
         <p className="text-sm leading-relaxed text-white/60">
           Modern elegance for the contemporary woman. Thoughtfully designed,
@@ -121,8 +121,8 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="container flex flex-col items-center justify-between gap-2 py-6 text-xs text-white/50 sm:flex-row">
           <p>
-            &copy; {new Date().getFullYear()} Naz&apos;s Collection. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} N&amp;N Naz&apos;s Collection. All
+            rights reserved.
           </p>
           <p className="uppercase tracking-widest">Modern Elegance · 2026</p>
         </div>

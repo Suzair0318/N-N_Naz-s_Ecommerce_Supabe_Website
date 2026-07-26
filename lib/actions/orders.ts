@@ -1,13 +1,39 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { placeOrderSchema, type PlaceOrderInput } from "@/lib/validators/checkout";
+import {
+  placeOrderSchema,
+  type PlaceOrderInput,
+} from "@/lib/validators/checkout";
 
 export interface PlaceOrderResult {
   success: boolean;
   orderId?: string;
   orderNumber?: string;
   error?: string;
+}
+
+function mapOrderError(message: string): string {
+  const msg = message.toLowerCase();
+  if (msg.includes("insufficient stock")) {
+    return "One or more items are no longer in stock. Update your bag and try again.";
+  }
+  if (msg.includes("not found")) {
+    return "An item in your bag is no longer available. Clear your bag and add it again.";
+  }
+  if (msg.includes("shipping city")) {
+    return "Please select a valid delivery city.";
+  }
+  if (msg.includes("invalid payment")) {
+    return "Please choose Cash on Delivery.";
+  }
+  if (msg.includes("foreign key") || msg.includes("profiles")) {
+    return "Your account profile is incomplete. Sign out, sign in again, then retry.";
+  }
+  if (msg.includes("could not find the function") || msg.includes("schema cache")) {
+    return "Ordering is temporarily unavailable. Please try again shortly.";
+  }
+  return "We couldn't place your order. Please try again.";
 }
 
 /**
@@ -42,6 +68,68 @@ export async function placeOrder(
     data: { user },
   } = await supabase.auth.getUser();
 
+  // orders.user_id references profiles(id). Ensure a profile row exists
+  // for signed-in users so the FK insert cannot fail.
+  let userId: string | null = user?.id ?? null;
+  if (userId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profile) {
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id: userId,
+        email: user?.email ?? data.customerEmail,
+        full_name: data.customerName,
+        role: "customer",
+      });
+
+      if (profileError) {
+        console.error(
+          "[orders] profile bootstrap failed:",
+          profileError.message
+        );
+        // Still allow guest-style checkout rather than blocking the sale.
+        userId = null;
+      }
+    }
+  }
+
+  const variantIds = data.items.map((i) => i.variantId);
+  const { data: variants, error: variantsError } = await supabase
+    .from("product_variants")
+    .select("id, stock_quantity")
+    .in("id", variantIds);
+
+  if (variantsError) {
+    console.error("[orders] variant lookup failed:", variantsError.message);
+    return {
+      success: false,
+      error: "We couldn't verify your bag items. Please try again.",
+    };
+  }
+
+  const byId = new Map((variants ?? []).map((v) => [v.id, v]));
+  for (const item of data.items) {
+    const row = byId.get(item.variantId);
+    if (!row) {
+      return {
+        success: false,
+        error:
+          "An item in your bag is no longer available. Clear your bag and add products again.",
+      };
+    }
+    if (row.stock_quantity < item.quantity) {
+      return {
+        success: false,
+        error:
+          "One or more items are no longer in stock. Update your bag and try again.",
+      };
+    }
+  }
+
   const { data: result, error } = await supabase.rpc("create_order", {
     p_customer_name: data.customerName,
     p_customer_email: data.customerEmail,
@@ -53,7 +141,7 @@ export async function placeOrder(
       country: data.country,
     },
     p_payment_method: data.paymentMethod,
-    p_user_id: user?.id ?? null,
+    p_user_id: userId,
     p_items: data.items.map((i) => ({
       variant_id: i.variantId,
       quantity: i.quantity,
@@ -61,13 +149,16 @@ export async function placeOrder(
   });
 
   if (error) {
-    console.error("[orders] placeOrder RPC failed:", error.message);
+    console.error(
+      "[orders] placeOrder RPC failed:",
+      error.message,
+      error.details,
+      error.hint,
+      error.code
+    );
     return {
       success: false,
-      error:
-        error.message.includes("Insufficient stock")
-          ? "One or more items are no longer in stock."
-          : "We couldn't place your order. Please try again.",
+      error: mapOrderError(error.message),
     };
   }
 

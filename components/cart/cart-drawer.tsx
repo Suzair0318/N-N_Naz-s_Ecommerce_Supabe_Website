@@ -21,7 +21,12 @@ import {
   SHIPPING_OTHER,
 } from "@/constants/shop";
 import { cn, formatPrice } from "@/lib/utils";
-import { selectCartWeightGrams, selectSubtotal, useCart } from "@/store/cart";
+import {
+  selectCartWeightGrams,
+  selectItemCount,
+  selectSubtotal,
+  useCart,
+} from "@/store/cart";
 
 export function CartDrawer() {
   const { items, isOpen, setOpen, updateQuantity, removeItem } = useCart();
@@ -30,6 +35,7 @@ export function CartDrawer() {
   useEffect(() => setMounted(true), []);
 
   const subtotal = selectSubtotal(items);
+  const itemCount = selectItemCount(items);
   const weightGrams = selectCartWeightGrams(items);
   const billableKg = getBillableKg(weightGrams);
   const estimateKarachi = getShippingFee("Karachi", weightGrams);
@@ -41,7 +47,7 @@ export function CartDrawer() {
         <SheetHeader className="border-b border-border p-6">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
-            Your Bag {mounted && items.length > 0 && `(${items.length})`}
+            Your Bag {mounted && itemCount > 0 && `(${itemCount})`}
           </SheetTitle>
         </SheetHeader>
 
@@ -77,7 +83,7 @@ export function CartDrawer() {
             <div className="flex-1 overflow-y-auto px-6">
               {items.map((item) => (
                 <div
-                  key={item.variantId}
+                  key={item.productId}
                   className="flex gap-4 border-b border-border py-5"
                 >
                   <div className="relative h-24 w-20 shrink-0 overflow-hidden bg-muted">
@@ -101,7 +107,7 @@ export function CartDrawer() {
                         {item.title}
                       </Link>
                       <button
-                        onClick={() => removeItem(item.variantId)}
+                        onClick={() => removeItem(item.productId)}
                         aria-label="Remove item"
                         className="text-muted-foreground hover:text-destructive"
                       >
@@ -116,7 +122,7 @@ export function CartDrawer() {
                         <button
                           className="flex h-8 w-8 items-center justify-center hover:bg-muted"
                           onClick={() =>
-                            updateQuantity(item.variantId, item.quantity - 1)
+                            updateQuantity(item.productId, item.quantity - 1)
                           }
                           aria-label="Decrease quantity"
                         >
@@ -133,7 +139,7 @@ export function CartDrawer() {
                           )}
                           disabled={item.quantity >= item.maxStock}
                           onClick={() =>
-                            updateQuantity(item.variantId, item.quantity + 1)
+                            updateQuantity(item.productId, item.quantity + 1)
                           }
                           aria-label="Increase quantity"
                         >
