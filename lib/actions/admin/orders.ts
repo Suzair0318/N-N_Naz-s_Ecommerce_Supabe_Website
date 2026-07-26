@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { isCurrentUserAdmin } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createPrivilegedClient } from "@/lib/supabase/server";
 import type { OrderStatus, PaymentStatus } from "@/lib/supabase/types";
 
 const ORDER_STATUSES: OrderStatus[] = [
@@ -27,7 +27,7 @@ export async function updateOrderStatus(
     return { success: false, error: "Invalid status" };
   }
 
-  const supabase = createAdminClient();
+  const supabase = createPrivilegedClient();
   const { error } = await supabase
     .from("orders")
     .update({ order_status: status })
@@ -54,7 +54,7 @@ export async function updatePaymentStatus(
     return { success: false, error: "Invalid status" };
   }
 
-  const supabase = createAdminClient();
+  const supabase = createPrivilegedClient();
   const { error } = await supabase
     .from("orders")
     .update({ payment_status: status })

@@ -35,6 +35,16 @@ export function createClient() {
   );
 }
 
+function isServiceRoleConfigured(): boolean {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!key) return false;
+  // Common local placeholders that look "set" but are not real JWT keys.
+  if (/^(placeholder|your-service-role-key|changeme|xxx)/i.test(key)) {
+    return false;
+  }
+  return key.length >= 40;
+}
+
 /**
  * Elevated Supabase client using the service role key.
  * SERVER-ONLY. Bypasses RLS — use exclusively in trusted server actions
@@ -42,14 +52,13 @@ export function createClient() {
  * or the key to the browser.
  */
 export function createAdminClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
+  if (!isServiceRoleConfigured()) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
   }
 
   return createSupabaseClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       auth: {
         autoRefreshToken: false,
@@ -57,4 +66,18 @@ export function createAdminClient() {
       },
     }
   );
+}
+
+/**
+ * Preferred client for admin server actions:
+ * - Uses service role when a real key is configured (bypasses RLS)
+ * - Otherwise uses the signed-in user's session (admin RLS policies apply)
+ *
+ * Always call `isCurrentUserAdmin()` before mutating with this client.
+ */
+export function createPrivilegedClient() {
+  if (isServiceRoleConfigured()) {
+    return createAdminClient();
+  }
+  return createClient();
 }

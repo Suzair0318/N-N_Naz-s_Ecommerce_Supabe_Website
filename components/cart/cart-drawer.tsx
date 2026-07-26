@@ -13,9 +13,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { SHIPPING_KARACHI, SHIPPING_OTHER } from "@/constants/shop";
+import {
+  formatWeightKg,
+  getBillableKg,
+  getShippingFee,
+  SHIPPING_KARACHI,
+  SHIPPING_OTHER,
+} from "@/constants/shop";
 import { cn, formatPrice } from "@/lib/utils";
-import { selectSubtotal, useCart } from "@/store/cart";
+import { selectCartWeightGrams, selectSubtotal, useCart } from "@/store/cart";
 
 export function CartDrawer() {
   const { items, isOpen, setOpen, updateQuantity, removeItem } = useCart();
@@ -24,6 +30,10 @@ export function CartDrawer() {
   useEffect(() => setMounted(true), []);
 
   const subtotal = selectSubtotal(items);
+  const weightGrams = selectCartWeightGrams(items);
+  const billableKg = getBillableKg(weightGrams);
+  const estimateKarachi = getShippingFee("Karachi", weightGrams);
+  const estimateOther = getShippingFee("Lahore", weightGrams);
 
   return (
     <Sheet open={isOpen} onOpenChange={setOpen}>
@@ -47,15 +57,20 @@ export function CartDrawer() {
           <>
             <div className="border-b border-border px-6 py-4">
               <p className="text-xs text-muted-foreground">
-                Shipping:{" "}
+                Est. shipping for {formatWeightKg(weightGrams)} ({billableKg}{" "}
+                kg):{" "}
                 <span className="font-medium text-charcoal">
-                  {formatPrice(SHIPPING_KARACHI)}
+                  {formatPrice(estimateKarachi)}
                 </span>{" "}
-                in Karachi ·{" "}
+                Karachi ·{" "}
                 <span className="font-medium text-charcoal">
-                  {formatPrice(SHIPPING_OTHER)}
+                  {formatPrice(estimateOther)}
                 </span>{" "}
                 other cities
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Base 1 kg: {formatPrice(SHIPPING_KARACHI)} /{" "}
+                {formatPrice(SHIPPING_OTHER)}. Extra kg = half base.
               </p>
             </div>
 

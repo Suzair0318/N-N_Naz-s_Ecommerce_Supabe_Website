@@ -51,6 +51,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       size: firstAvailable.size,
       unitPrice: firstAvailable.price_override ?? effectivePrice,
       maxStock: firstAvailable.stock_quantity,
+      weightGrams: product.weight != null ? Number(product.weight) : 0,
     });
     toast.success("Added to bag", {
       description: `${product.title} — Size ${firstAvailable.size}`,

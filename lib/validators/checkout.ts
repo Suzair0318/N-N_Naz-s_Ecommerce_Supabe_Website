@@ -8,7 +8,7 @@ const checkoutFields = {
     .min(7, "Enter a valid phone number")
     .max(20, "Phone number is too long"),
   address: z.string().min(4, "Enter your street address"),
-  /** Delivery city — drives shipping (Karachi 350 / other 400). */
+  /** Delivery city — drives base shipping (Karachi 350 / other 450). */
   city: z.string().min(2, "Please select your city"),
   /** Used when city = "Other" */
   cityOther: z.string().optional().nullable(),

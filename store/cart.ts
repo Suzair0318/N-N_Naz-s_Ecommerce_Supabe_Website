@@ -13,6 +13,8 @@ export interface CartItem {
   unitPrice: number;
   quantity: number;
   maxStock: number;
+  /** Product unit weight in grams (from catalog). */
+  weightGrams: number;
 }
 
 interface CartState {
@@ -25,6 +27,12 @@ interface CartState {
   setOpen: (open: boolean) => void;
 }
 
+function normalizeWeight(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export const useCart = create<CartState>()(
   persist(
     (set) => ({
@@ -32,6 +40,7 @@ export const useCart = create<CartState>()(
       isOpen: false,
       addItem: (item, quantity = 1) =>
         set((state) => {
+          const weightGrams = normalizeWeight(item.weightGrams);
           const existing = state.items.find(
             (i) => i.variantId === item.variantId
           );
@@ -44,7 +53,7 @@ export const useCart = create<CartState>()(
               isOpen: true,
               items: state.items.map((i) =>
                 i.variantId === item.variantId
-                  ? { ...i, quantity: nextQty }
+                  ? { ...i, quantity: nextQty, weightGrams }
                   : i
               ),
             };
@@ -53,7 +62,11 @@ export const useCart = create<CartState>()(
             isOpen: true,
             items: [
               ...state.items,
-              { ...item, quantity: Math.min(quantity, item.maxStock) },
+              {
+                ...item,
+                weightGrams,
+                quantity: Math.min(quantity, item.maxStock),
+              },
             ],
           };
         }),
@@ -77,7 +90,24 @@ export const useCart = create<CartState>()(
       clear: () => set({ items: [] }),
       setOpen: (open) => set({ isOpen: open }),
     }),
-    { name: "naz-cart" }
+    {
+      name: "naz-cart",
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<CartState>;
+        return {
+          ...current,
+          ...p,
+          items: Array.isArray(p.items)
+            ? p.items.map((item) => ({
+                ...item,
+                weightGrams: normalizeWeight(
+                  (item as CartItem).weightGrams
+                ),
+              }))
+            : current.items,
+        };
+      },
+    }
   )
 );
 
@@ -86,3 +116,10 @@ export const selectSubtotal = (items: CartItem[]) =>
 
 export const selectItemCount = (items: CartItem[]) =>
   items.reduce((sum, i) => sum + i.quantity, 0);
+
+/** Total cart weight in grams (unit weight × qty). */
+export const selectCartWeightGrams = (items: CartItem[]) =>
+  items.reduce(
+    (sum, i) => sum + normalizeWeight(i.weightGrams) * i.quantity,
+    0
+  );

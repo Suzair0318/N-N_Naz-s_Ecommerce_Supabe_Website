@@ -224,9 +224,9 @@ export function ProductForm({
               )}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:col-span-2">
             <div className="space-y-1.5">
-              <Label>Base price</Label>
+              <Label>Base price (PKR)</Label>
               <Input type="number" step="0.01" {...register("base_price")} />
               {errors.base_price && (
                 <p className="text-xs text-destructive">
@@ -235,44 +235,68 @@ export function ProductForm({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Discount price</Label>
+              <Label>Discount price (PKR)</Label>
               <Input
                 type="number"
                 step="0.01"
                 {...register("discount_price")}
-                placeholder="Optional"
+                placeholder="Optional — enables Sale badge"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Agar yeh price set karo (base se kam), shop cards par automatic{" "}
+                <span className="font-medium text-gold-dark">Sale</span> badge
+                dikhega. Empty chhoro = no sale badge.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex gap-8">
-          <Controller
-            control={control}
-            name="featured"
-            render={({ field }) => (
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-                Featured
-              </label>
-            )}
-          />
-          <Controller
-            control={control}
-            name="is_active"
-            render={({ field }) => (
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-                Active (visible in store)
-              </label>
-            )}
-          />
+        <div className="mt-6 space-y-4 border-t border-border pt-6">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+            Visibility &amp; placement
+          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-10">
+            <Controller
+              control={control}
+              name="is_active"
+              render={({ field }) => (
+                <label className="flex max-w-sm cursor-pointer items-start gap-2.5 text-sm">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                  <span>
+                    <span className="font-medium">Visible in store</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      On = shop / product page par dikhega. Off = hidden (admin
+                      list mein rahega).
+                    </span>
+                  </span>
+                </label>
+              )}
+            />
+            <Controller
+              control={control}
+              name="featured"
+              render={({ field }) => (
+                <label className="flex max-w-sm cursor-pointer items-start gap-2.5 text-sm">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                  <span>
+                    <span className="font-medium">Featured product</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      On = homepage &quot;Featured Pieces / Editor&apos;s
+                      Picks&quot; section mein show hoga.
+                    </span>
+                  </span>
+                </label>
+              )}
+            />
+          </div>
         </div>
       </section>
 

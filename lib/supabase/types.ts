@@ -22,6 +22,12 @@ export interface ShippingAddress {
   country: string;
   /** Applied shipping fee in PKR (set server-side). */
   shipping_fee?: number;
+  /** Base city rate for the first 1 kg. */
+  base_shipping_fee?: number;
+  /** Total parcel weight in grams. */
+  weight_grams?: number;
+  /** Ceil(kg) brackets used for the fee. */
+  billable_kg?: number;
 }
 
 export interface Database {

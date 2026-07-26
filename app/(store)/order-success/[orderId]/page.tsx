@@ -107,7 +107,11 @@ export default async function OrderSuccessPage({
               {shippingFee != null && (
                 <div className="flex justify-between gap-4 sm:justify-end sm:gap-8">
                   <span className="text-muted-foreground">
-                    Shipping ({order.shipping_address.city})
+                    Shipping ({order.shipping_address.city}
+                    {typeof order.shipping_address.billable_kg === "number"
+                      ? ` · ${order.shipping_address.billable_kg} kg`
+                      : ""}
+                    )
                   </span>
                   <span>{formatPrice(shippingFee)}</span>
                 </div>

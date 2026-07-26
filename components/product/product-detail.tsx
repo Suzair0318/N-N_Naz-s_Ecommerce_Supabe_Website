@@ -82,6 +82,7 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
         size: selectedVariant.size,
         unitPrice: displayPrice,
         maxStock,
+        weightGrams: product.weight != null ? Number(product.weight) : 0,
       },
       quantity
     );

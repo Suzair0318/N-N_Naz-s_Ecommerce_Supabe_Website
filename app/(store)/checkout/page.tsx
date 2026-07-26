@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  formatWeightKg,
+  getBillableKg,
   getShippingFee,
   PAKISTAN_CITIES,
   SHIPPING_KARACHI,
@@ -29,7 +31,7 @@ import {
 import { placeOrder } from "@/lib/actions/orders";
 import { cn, formatPrice } from "@/lib/utils";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/validators/checkout";
-import { selectSubtotal, useCart } from "@/store/cart";
+import { selectCartWeightGrams, selectSubtotal, useCart } from "@/store/cart";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -68,9 +70,12 @@ export default function CheckoutPage() {
   }, [city, cityOther]);
 
   const subtotal = mounted ? selectSubtotal(items) : 0;
-  const shipping = getShippingFee(resolvedCity || "Karachi");
+  const weightGrams = mounted ? selectCartWeightGrams(items) : 0;
+  const billableKg = getBillableKg(weightGrams);
+  const shipping = getShippingFee(resolvedCity || "Karachi", weightGrams);
   const total = subtotal + shipping;
   const isKarachi = resolvedCity.toLowerCase() === "karachi";
+  const baseShipping = isKarachi ? SHIPPING_KARACHI : SHIPPING_OTHER;
 
   const goToPayment = async () => {
     const fields: (keyof CheckoutFormValues)[] = [
@@ -155,8 +160,9 @@ export default function CheckoutPage() {
                 <div>
                   <p className="font-medium">Delivery location &amp; shipping</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Karachi: {formatPrice(SHIPPING_KARACHI)} · Other cities:{" "}
-                    {formatPrice(SHIPPING_OTHER)}
+                    First 1 kg — Karachi: {formatPrice(SHIPPING_KARACHI)} · Other
+                    cities: {formatPrice(SHIPPING_OTHER)}. Each extra kg adds half
+                    of that city&apos;s base rate.
                   </p>
                 </div>
               </div>
@@ -237,20 +243,29 @@ export default function CheckoutPage() {
               </div>
 
               <div className="rounded-none border border-gold/30 bg-gold/5 px-4 py-3 text-sm">
-                Shipping to{" "}
-                <span className="font-medium">
-                  {resolvedCity || "your city"}
-                </span>
-                :{" "}
-                <span className="font-medium text-gold-dark">
-                  {formatPrice(shipping)}
-                </span>
-                {!isKarachi && resolvedCity && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    (outside Karachi)
+                <p>
+                  Shipping to{" "}
+                  <span className="font-medium">
+                    {resolvedCity || "your city"}
                   </span>
-                )}
+                  :{" "}
+                  <span className="font-medium text-gold-dark">
+                    {formatPrice(shipping)}
+                  </span>
+                  {!isKarachi && resolvedCity && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      (outside Karachi)
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Parcel weight {formatWeightKg(weightGrams)} → billed as{" "}
+                  {billableKg} kg
+                  {billableKg > 1
+                    ? ` (${formatPrice(baseShipping)} + ${billableKg - 1} × ${formatPrice(baseShipping / 2)})`
+                    : ` (${formatPrice(baseShipping)} base)`}
+                </p>
               </div>
 
               <Button type="button" size="lg" onClick={goToPayment}>
@@ -356,6 +371,9 @@ export default function CheckoutPage() {
                     <p className="truncate text-sm font-medium">{item.title}</p>
                     <p className="text-xs text-muted-foreground">
                       Size {item.size}
+                      {item.weightGrams > 0
+                        ? ` · ${formatWeightKg(item.weightGrams * item.quantity)}`
+                        : ""}
                     </p>
                   </div>
                   <span className="shrink-0 self-center text-sm">
@@ -369,6 +387,15 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatPrice(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total weight</span>
+              <span className="text-right">
+                {formatWeightKg(weightGrams)}
+                <span className="block text-[11px] text-muted-foreground">
+                  billed as {billableKg} kg
+                </span>
+              </span>
             </div>
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">

@@ -18,6 +18,18 @@ const inter = Inter({
   display: "swap",
 });
 
+function getMetadataBase(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw);
+    } catch {
+      // Invalid env value — fall back for local/dev.
+    }
+  }
+  return new URL("http://localhost:3000");
+}
+
 export const metadata: Metadata = {
   title: {
     default: "Naz's Collection — Women's Clothing",
@@ -25,9 +37,7 @@ export const metadata: Metadata = {
   },
   description:
     "Ultra-luxurious modern women's fashion. Modern elegance for 2026.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
-  ),
+  metadataBase: getMetadataBase(),
 };
 
 export default function RootLayout({

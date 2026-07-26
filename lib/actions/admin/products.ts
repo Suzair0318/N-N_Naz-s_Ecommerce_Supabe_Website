@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { isCurrentUserAdmin } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createPrivilegedClient } from "@/lib/supabase/server";
 import { productSchema, type ProductFormValues } from "@/lib/validators/product";
 
 interface ActionResult {
@@ -13,7 +13,7 @@ interface ActionResult {
 }
 
 async function persistImagesAndVariants(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: ReturnType<typeof createPrivilegedClient>,
   productId: string,
   data: ProductFormValues
 ) {
@@ -52,7 +52,7 @@ export async function createProduct(
     return { success: false, error: parsed.error.errors[0]?.message };
   }
   const data = parsed.data;
-  const supabase = createAdminClient();
+  const supabase = createPrivilegedClient();
 
   const { data: product, error } = await supabase
     .from("products")
@@ -101,7 +101,7 @@ export async function updateProduct(
     return { success: false, error: parsed.error.errors[0]?.message };
   }
   const data = parsed.data;
-  const supabase = createAdminClient();
+  const supabase = createPrivilegedClient();
 
   const { error } = await supabase
     .from("products")
@@ -139,12 +139,67 @@ export async function deleteProduct(
     return { success: false, error: "Unauthorized" };
   }
 
-  const supabase = createAdminClient();
+  const supabase = createPrivilegedClient();
+
+  // Clear order line references first (keeps order history, allows hard delete).
+  const { error: orderItemsError } = await supabase
+    .from("order_items")
+    .update({ product_id: null, variant_id: null })
+    .eq("product_id", productId);
+
+  if (orderItemsError) {
+    console.error(
+      "[admin] deleteProduct order_items unlink failed:",
+      orderItemsError.message
+    );
+    // Continue — schema may already ON DELETE SET NULL; product delete can still work.
+  }
+
+  const { error: variantsError } = await supabase
+    .from("product_variants")
+    .delete()
+    .eq("product_id", productId);
+
+  if (variantsError) {
+    console.error(
+      "[admin] deleteProduct variants failed:",
+      variantsError.message
+    );
+    return {
+      success: false,
+      error: "Could not delete product variants. Check admin permissions.",
+    };
+  }
+
+  const { error: imagesError } = await supabase
+    .from("product_images")
+    .delete()
+    .eq("product_id", productId);
+
+  if (imagesError) {
+    console.error(
+      "[admin] deleteProduct images failed:",
+      imagesError.message
+    );
+    return {
+      success: false,
+      error: "Could not delete product images. Check admin permissions.",
+    };
+  }
+
   const { error } = await supabase.from("products").delete().eq("id", productId);
 
   if (error) {
     console.error("[admin] deleteProduct failed:", error.message);
-    return { success: false, error: "Could not delete product" };
+    return {
+      success: false,
+      error:
+        error.message.includes("Invalid API key")
+          ? "Server key missing. Set SUPABASE_SERVICE_ROLE_KEY or ensure your profile role is admin."
+          : error.message.includes("foreign key")
+            ? "This product is linked to orders and could not be removed."
+            : "Could not delete product",
+    };
   }
 
   revalidatePath("/admin/products");
