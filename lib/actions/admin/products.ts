@@ -35,7 +35,11 @@ async function persistImagesAndVariants(
       product_id: productId,
       size: v.size,
       stock_quantity: v.stock_quantity,
-      price_override: v.price_override ?? null,
+      // 0 means “unused” in the admin UI — store null so catalog price applies.
+      price_override:
+        v.price_override != null && v.price_override > 0
+          ? v.price_override
+          : null,
     }))
   );
 }

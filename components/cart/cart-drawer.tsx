@@ -21,6 +21,7 @@ import {
   SHIPPING_OTHER,
 } from "@/constants/shop";
 import { cn, formatPrice } from "@/lib/utils";
+import { useSyncCartPricing } from "@/hooks/use-sync-cart-pricing";
 import {
   selectCartWeightGrams,
   selectItemCount,
@@ -33,6 +34,7 @@ export function CartDrawer() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
+  useSyncCartPricing(mounted && isOpen);
 
   const subtotal = selectSubtotal(items);
   const itemCount = selectItemCount(items);

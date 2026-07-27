@@ -23,6 +23,14 @@ interface CartState {
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  syncPricing: (
+    pricing: {
+      variantId: string;
+      unitPrice: number;
+      maxStock?: number;
+      weightGrams?: number;
+    }[]
+  ) => void;
   clear: () => void;
   setOpen: (open: boolean) => void;
 }
@@ -145,6 +153,41 @@ export const useCart = create<CartState>()(
             )
             .filter((i) => i.quantity > 0),
         })),
+      syncPricing: (pricing) =>
+        set((state) => {
+          if (!pricing.length || !state.items.length) return state;
+          const byVariant = new Map(pricing.map((p) => [p.variantId, p]));
+          let changed = false;
+          const items = state.items.map((item) => {
+            const live = byVariant.get(item.variantId);
+            if (!live) return item;
+            const unitPrice = Number(live.unitPrice);
+            const next = {
+              ...item,
+              unitPrice:
+                Number.isFinite(unitPrice) && unitPrice > 0
+                  ? unitPrice
+                  : item.unitPrice,
+              maxStock:
+                live.maxStock != null
+                  ? Math.max(0, live.maxStock)
+                  : item.maxStock,
+              weightGrams:
+                live.weightGrams != null
+                  ? normalizeWeight(live.weightGrams)
+                  : item.weightGrams,
+            };
+            if (
+              next.unitPrice !== item.unitPrice ||
+              next.maxStock !== item.maxStock ||
+              next.weightGrams !== item.weightGrams
+            ) {
+              changed = true;
+            }
+            return next;
+          });
+          return changed ? { items } : state;
+        }),
       clear: () => set({ items: [] }),
       setOpen: (open) => set({ isOpen: open }),
     }),

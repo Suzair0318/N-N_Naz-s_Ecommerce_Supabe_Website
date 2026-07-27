@@ -13,6 +13,7 @@ import { BlurFade } from "@/components/motion/blur-fade";
 import { Price } from "@/components/product/price";
 import { ProductReviews } from "@/components/product/product-reviews";
 import { SizeSelector } from "@/components/product/size-selector";
+import { resolveUnitPrice } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import type { ProductWithRelations } from "@/lib/types";
 import { useCart } from "@/store/cart";
@@ -49,8 +50,11 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
     [product.variants, selectedSize]
   );
 
-  const effectivePrice = product.discount_price ?? product.base_price;
-  const displayPrice = selectedVariant?.price_override ?? effectivePrice;
+  const displayPrice = resolveUnitPrice(
+    selectedVariant?.price_override,
+    product.discount_price,
+    product.base_price
+  );
   const maxStock = selectedVariant?.stock_quantity ?? 0;
 
   const handleAddToBag = () => {

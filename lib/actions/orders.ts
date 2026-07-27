@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { resolveUnitPrice } from "@/lib/pricing";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import {
   placeOrderSchema,
   type PlaceOrderInput,
@@ -34,6 +35,84 @@ function mapOrderError(message: string): string {
     return "Ordering is temporarily unavailable. Please try again shortly.";
   }
   return "We couldn't place your order. Please try again.";
+}
+
+/**
+ * Aligns order line prices with catalog rules after create_order.
+ * Covers legacy RPC bugs (price_override 0, discount_price > base_price).
+ */
+async function syncOrderItemPricesFromCatalog(orderId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data: items, error } = await admin
+      .from("order_items")
+      .select(
+        "id, quantity, unit_price, variant:product_variants(price_override, product:products(base_price, discount_price))"
+      )
+      .eq("order_id", orderId);
+
+    if (error || !items?.length) return;
+
+    let subtotal = 0;
+    let changed = false;
+
+    for (const item of items) {
+      const variant = Array.isArray(item.variant)
+        ? item.variant[0]
+        : item.variant;
+      const product = Array.isArray(variant?.product)
+        ? variant?.product[0]
+        : variant?.product;
+      const live = resolveUnitPrice(
+        variant?.price_override,
+        product?.discount_price,
+        product?.base_price
+      );
+      if (!(live > 0)) {
+        subtotal += Number(item.unit_price) * item.quantity;
+        continue;
+      }
+
+      const current = Number(item.unit_price);
+      if (current !== live) {
+        changed = true;
+        await admin
+          .from("order_items")
+          .update({ unit_price: live })
+          .eq("id", item.id);
+      }
+      subtotal += live * item.quantity;
+    }
+
+    if (!changed && !(subtotal > 0)) return;
+
+    const { data: order } = await admin
+      .from("orders")
+      .select("shipping_address, total_amount")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    const shippingRaw = order?.shipping_address as
+      | { shipping_fee?: number | string }
+      | null;
+    const shippingFee =
+      typeof shippingRaw?.shipping_fee === "number"
+        ? shippingRaw.shipping_fee
+        : Number(shippingRaw?.shipping_fee) || 0;
+    const nextTotal = subtotal + shippingFee;
+
+    if (changed || Number(order?.total_amount) !== nextTotal) {
+      await admin
+        .from("orders")
+        .update({ total_amount: nextTotal })
+        .eq("id", orderId);
+    }
+  } catch (err) {
+    console.error(
+      "[orders] syncOrderItemPricesFromCatalog failed:",
+      err instanceof Error ? err.message : err
+    );
+  }
 }
 
 /**
@@ -166,6 +245,8 @@ export async function placeOrder(
   if (!row?.order_id) {
     return { success: false, error: "Order could not be created." };
   }
+
+  await syncOrderItemPricesFromCatalog(row.order_id);
 
   return {
     success: true,

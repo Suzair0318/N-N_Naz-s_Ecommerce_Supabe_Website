@@ -12,10 +12,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
+function withRedirect(href: string, redirect: string) {
+  if (!redirect || redirect === "/account") return href;
+  const params = new URLSearchParams({ redirect });
+  return `${href}?${params.toString()}`;
+}
+
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/account";
+  const isCheckout = redirect.startsWith("/checkout");
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +42,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         });
         if (error) throw error;
         toast.success("Account created", {
-          description: "You're all set. Welcome to Naz's Collection.",
+          description: isCheckout
+            ? "You're signed in — continuing to checkout."
+            : "You're all set. Welcome to Naz's Collection.",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -43,6 +52,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           password,
         });
         if (error) throw error;
+        if (isCheckout) {
+          toast.success("Signed in", {
+            description: "Your bag is ready — continue to checkout.",
+          });
+        }
       }
       router.push(redirect);
       router.refresh();
@@ -55,18 +69,30 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     }
   };
 
+  const title =
+    mode === "login"
+      ? isCheckout
+        ? "Sign in to checkout"
+        : "Welcome back"
+      : isCheckout
+        ? "Create an account to checkout"
+        : "Create your account";
+
+  const subtitle =
+    mode === "login"
+      ? isCheckout
+        ? "Your bag is saved. Sign in to place your order."
+        : "Sign in to view your orders and wishlist."
+      : isCheckout
+        ? "Join to complete your order — your bag items stay with you."
+        : "Join for private previews and faster checkout.";
+
   return (
     <div className="container flex min-h-[70vh] items-center justify-center py-16">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="font-serif text-3xl tracking-tight">
-            {mode === "login" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login"
-              ? "Sign in to view your orders and wishlist."
-              : "Join for private previews and faster checkout."}
-          </p>
+          <h1 className="font-serif text-3xl tracking-tight">{title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -104,7 +130,13 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </div>
           <Button type="submit" size="lg" className="w-full" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "login" ? "Sign in" : "Create account"}
+            {mode === "login"
+              ? isCheckout
+                ? "Sign in & continue"
+                : "Sign in"
+              : isCheckout
+                ? "Create account & continue"
+                : "Create account"}
           </Button>
         </form>
 
@@ -112,14 +144,20 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {mode === "login" ? (
             <>
               New here?{" "}
-              <Link href="/register" className="link-gold underline underline-offset-4">
+              <Link
+                href={withRedirect("/register", redirect)}
+                className="link-gold underline underline-offset-4"
+              >
                 Create an account
               </Link>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <Link href="/login" className="link-gold underline underline-offset-4">
+              <Link
+                href={withRedirect("/login", redirect)}
+                className="link-gold underline underline-offset-4"
+              >
                 Sign in
               </Link>
             </>

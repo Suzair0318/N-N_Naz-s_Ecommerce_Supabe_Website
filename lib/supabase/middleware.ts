@@ -7,9 +7,9 @@ import type { Database } from "./types";
 /**
  * Refreshes the Supabase session on every request and enforces access control
  * for protected routes:
- *  - /admin/**   -> requires an authenticated user with profiles.role = 'admin'
- *  - /account/** -> requires an authenticated user
- *  - /checkout   -> allowed for guests (no guard)
+ *  - /admin/**    -> requires an authenticated user with profiles.role = 'admin'
+ *  - /account/**  -> requires an authenticated user
+ *  - /checkout/** -> requires an authenticated user (guest cart OK; login at checkout)
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -43,8 +43,9 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isAccountRoute = pathname.startsWith("/account");
+  const isCheckoutRoute = pathname.startsWith("/checkout");
 
-  if ((isAdminRoute || isAccountRoute) && !user) {
+  if ((isAdminRoute || isAccountRoute || isCheckoutRoute) && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("redirect", pathname);

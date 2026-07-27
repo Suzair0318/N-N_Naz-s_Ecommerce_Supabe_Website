@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Price } from "@/components/product/price";
+import { resolveUnitPrice } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import type { ProductCardData } from "@/lib/types";
 import { useCart } from "@/store/cart";
@@ -35,8 +36,6 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   const primary = images[0]?.image_url ?? null;
   const secondary = images[1]?.image_url ?? primary;
 
-  const effectivePrice = product.discount_price ?? product.base_price;
-
   const firstAvailable = product.variants.find((v) => v.stock_quantity > 0);
   const soldOut = !firstAvailable;
 
@@ -49,7 +48,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       title: product.title,
       image: primary,
       size: firstAvailable.size,
-      unitPrice: firstAvailable.price_override ?? effectivePrice,
+      unitPrice: resolveUnitPrice(
+        firstAvailable.price_override,
+        product.discount_price,
+        product.base_price
+      ),
       maxStock: firstAvailable.stock_quantity,
       weightGrams: product.weight != null ? Number(product.weight) : 0,
     });
