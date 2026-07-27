@@ -253,7 +253,7 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
                   slug: product.slug,
                   title: product.title,
                   image: images[0].image_url || null,
-                  price: effectivePrice,
+                  price: displayPrice,
                 })
               }
             >

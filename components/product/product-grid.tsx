@@ -3,6 +3,7 @@
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
 import { ProductCard } from "@/components/product/product-card";
+import { easeOutExpo, useMotionProfile } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { ProductCardData } from "@/lib/types";
 
@@ -18,6 +19,7 @@ export function ProductGrid({
   emptyMessage = "No products found.",
 }: ProductGridProps) {
   const reduceMotion = useReducedMotion();
+  const profile = useMotionProfile();
   const listKey = products.map((p) => p.id).join("|");
 
   if (products.length === 0) {
@@ -31,28 +33,29 @@ export function ProductGrid({
   const container: Variants = {
     hidden: {},
     show: {
-      transition: { staggerChildren: 0.07, delayChildren: 0.04 },
+      transition: {
+        staggerChildren: profile.stagger,
+        delayChildren: 0.03,
+      },
     },
   };
 
   const item: Variants = {
     hidden: {
       opacity: 0,
-      y: 32,
-      scale: 0.97,
-      filter: "blur(6px)",
+      y: profile.y,
+      scale: profile.scaleFrom,
     },
     show: {
       opacity: 1,
       y: 0,
       scale: 1,
-      filter: "blur(0px)",
-      transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+      transition: { duration: profile.duration, ease: easeOutExpo },
     },
   };
 
   const gridClass = cn(
-    "grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4",
+    "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 sm:gap-y-10 md:grid-cols-3 lg:grid-cols-4",
     className
   );
 
@@ -72,10 +75,20 @@ export function ProductGrid({
       className={gridClass}
       variants={container}
       initial="hidden"
-      animate="show"
+      whileInView="show"
+      viewport={{
+        once: true,
+        amount: 0.08,
+        margin: profile.viewportMargin,
+      }}
     >
       {products.map((product, i) => (
-        <motion.div key={product.id} variants={item}>
+        <motion.div
+          key={product.id}
+          variants={item}
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.15 }}
+        >
           <ProductCard product={product} priority={i < 4} />
         </motion.div>
       ))}

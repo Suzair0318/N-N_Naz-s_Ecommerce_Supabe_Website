@@ -2,30 +2,32 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
+import { easeOutExpo, useMotionProfile } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 interface StaggerRevealProps {
   children: React.ReactNode;
   className?: string;
-  /** Delay between each child (seconds) */
   stagger?: number;
-  /** Initial vertical offset */
   fromY?: number;
   duration?: number;
 }
 
 /**
- * Staggered grid/list reveal adapted from 21st.dev Stagger Reveal Grid,
- * implemented with Framer Motion (no GSAP dependency).
+ * Staggered list/grid reveal (21st pattern) — snappy on mobile.
  */
 export function StaggerReveal({
   children,
   className,
-  stagger = 0.08,
-  fromY = 36,
-  duration = 0.55,
+  stagger,
+  fromY,
+  duration,
 }: StaggerRevealProps) {
   const reduceMotion = useReducedMotion();
+  const profile = useMotionProfile();
+  const staggerChildren = stagger ?? profile.stagger;
+  const y = fromY ?? profile.y;
+  const d = duration ?? profile.duration;
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>;
@@ -35,8 +37,8 @@ export function StaggerReveal({
     hidden: {},
     show: {
       transition: {
-        staggerChildren: stagger,
-        delayChildren: 0.05,
+        staggerChildren,
+        delayChildren: 0.04,
       },
     },
   };
@@ -44,18 +46,16 @@ export function StaggerReveal({
   const item: Variants = {
     hidden: {
       opacity: 0,
-      y: fromY,
-      scale: 0.96,
-      filter: "blur(6px)",
+      y,
+      scale: profile.scaleFrom,
     },
     show: {
       opacity: 1,
       y: 0,
       scale: 1,
-      filter: "blur(0px)",
       transition: {
-        duration,
-        ease: [0.22, 1, 0.36, 1],
+        duration: d,
+        ease: easeOutExpo,
       },
     },
   };
@@ -66,7 +66,11 @@ export function StaggerReveal({
       variants={container}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.12, margin: "-60px" }}
+      viewport={{
+        once: true,
+        amount: profile.viewportAmount,
+        margin: profile.viewportMargin,
+      }}
     >
       {Array.isArray(children)
         ? children.map((child, i) => (
@@ -79,7 +83,6 @@ export function StaggerReveal({
   );
 }
 
-/** Wrap a single grid item when mapping outside StaggerReveal's children array. */
 export function StaggerItem({
   children,
   className,
@@ -88,6 +91,7 @@ export function StaggerItem({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
+  const profile = useMotionProfile();
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>;
@@ -99,18 +103,16 @@ export function StaggerItem({
       variants={{
         hidden: {
           opacity: 0,
-          y: 36,
-          scale: 0.96,
-          filter: "blur(6px)",
+          y: profile.y,
+          scale: profile.scaleFrom,
         },
         show: {
           opacity: 1,
           y: 0,
           scale: 1,
-          filter: "blur(0px)",
           transition: {
-            duration: 0.55,
-            ease: [0.22, 1, 0.36, 1],
+            duration: profile.duration,
+            ease: easeOutExpo,
           },
         },
       }}

@@ -8,7 +8,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { ProductGrid } from "@/components/product/product-grid";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
-import { getCategories } from "@/lib/repositories/categories";
+import { getCategoriesForStorefront } from "@/lib/repositories/categories";
 import {
   getFeaturedProducts,
   getNewArrivals,
@@ -18,17 +18,35 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const [categories, featured, newArrivals] = await Promise.all([
-    getCategories(),
+    getCategoriesForStorefront(),
     getFeaturedProducts(4),
     getNewArrivals(8),
   ]);
+
+  const saleCandidates = [...newArrivals, ...featured].filter(
+    (p) =>
+      p.discount_price != null &&
+      Number(p.discount_price) > 0 &&
+      Number(p.discount_price) < Number(p.base_price)
+  );
+  const saleHint =
+    saleCandidates.length > 0
+      ? {
+          label: saleCandidates[0].title,
+          price: Math.min(
+            ...saleCandidates.map((p) =>
+              Number(p.discount_price ?? p.base_price)
+            )
+          ),
+        }
+      : null;
 
   return (
     <>
       <Hero />
 
       {/* Featured categories */}
-      <section className="container py-20">
+      <section className="container py-14 sm:py-20">
         <Reveal>
           <SectionHeading
             eyebrow="Curated Edits"
@@ -41,7 +59,7 @@ export default async function HomePage() {
       </section>
 
       {/* New arrivals */}
-      <section className="bg-offwhite py-20">
+      <section className="bg-offwhite py-14 sm:py-20">
         <div className="container">
           <Reveal>
             <SectionHeading
@@ -55,12 +73,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Shop the look / editorial */}
-      <EditorialBanner />
+      {/* Premium offers / flash sale */}
+      <EditorialBanner saleHint={saleHint} />
 
       {/* Featured grid */}
       {featured.length > 0 && (
-        <section className="container pb-24">
+        <section className="container pb-16 sm:pb-24">
           <Reveal>
             <SectionHeading
               eyebrow="Editor's Picks"
@@ -73,7 +91,7 @@ export default async function HomePage() {
       )}
 
       {/* Soft CTA strip */}
-      <section className="border-y border-border bg-offwhite py-16">
+      <section className="border-y border-border bg-offwhite py-12 sm:py-16">
         <div className="container flex flex-col items-center text-center">
           <BlurFade>
             <span className="eyebrow">Private Preview</span>
@@ -84,7 +102,7 @@ export default async function HomePage() {
               Explore the latest branded pieces curated for Naz&apos;s Collection —
               limited sizes, fast shipping across Pakistan.
             </p>
-            <Button asChild variant="gold" size="lg" className="mt-8">
+            <Button asChild variant="gold" size="lg" className="mt-8 w-full max-w-xs sm:w-auto">
               <Link href="/shop?sort=newest">Browse New In</Link>
             </Button>
           </BlurFade>

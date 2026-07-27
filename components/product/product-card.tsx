@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Price } from "@/components/product/price";
+import { easeOutExpo, useIsMobile } from "@/lib/motion";
 import { resolveUnitPrice } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import type { ProductCardData } from "@/lib/types";
@@ -24,6 +25,7 @@ interface ProductCardProps {
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const [hovered, setHovered] = useState(false);
   const reduceMotion = useReducedMotion();
+  const isMobile = useIsMobile();
   const addItem = useCart((s) => s.addItem);
   const toggleWishlist = useWishlist((s) => s.toggle);
   const inWishlist = useWishlist((s) =>
@@ -38,6 +40,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
   const firstAvailable = product.variants.find((v) => v.stock_quantity > 0);
   const soldOut = !firstAvailable;
+  const sellingPrice = resolveUnitPrice(
+    firstAvailable?.price_override,
+    product.discount_price,
+    product.base_price
+  );
 
   const handleQuickAdd = () => {
     if (!firstAvailable) return;
@@ -48,11 +55,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       title: product.title,
       image: primary,
       size: firstAvailable.size,
-      unitPrice: resolveUnitPrice(
-        firstAvailable.price_override,
-        product.discount_price,
-        product.base_price
-      ),
+      unitPrice: sellingPrice,
       maxStock: firstAvailable.stock_quantity,
       weightGrams: product.weight != null ? Number(product.weight) : 0,
     });
@@ -64,12 +67,15 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   return (
     <motion.div
       className="group relative flex flex-col"
-      whileHover={reduceMotion ? undefined : { y: -4 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={
+        reduceMotion || isMobile ? undefined : { y: -4 }
+      }
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      transition={{ duration: 0.3, ease: easeOutExpo }}
     >
       <div
         className="relative aspect-[3/4] overflow-hidden bg-muted"
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={() => !isMobile && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
         <Link href={`/product/${product.slug}`} className="block h-full w-full">
@@ -77,11 +83,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             <motion.div
               className="absolute inset-0"
               animate={
-                reduceMotion
+                reduceMotion || isMobile
                   ? undefined
                   : { scale: hovered ? 1.05 : 1 }
               }
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.7, ease: easeOutExpo }}
             >
               <Image
                 src={primary}
@@ -114,26 +120,28 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           )}
         </Link>
 
-        <div className="absolute left-3 top-3 flex flex-col gap-2">
-          {product.discount_price && (
+        <div className="absolute left-2 top-2 flex flex-col gap-2 sm:left-3 sm:top-3">
+          {product.discount_price &&
+            Number(product.discount_price) < Number(product.base_price) && (
             <Badge variant="gold">Sale</Badge>
           )}
           {soldOut && <Badge variant="muted">Sold out</Badge>}
         </div>
 
-        <button
+        <motion.button
           type="button"
           aria-label="Toggle wishlist"
+          whileTap={reduceMotion ? undefined : { scale: 0.9 }}
           onClick={() =>
             toggleWishlist({
               productId: product.id,
               slug: product.slug,
               title: product.title,
               image: primary,
-              price: effectivePrice,
+              price: sellingPrice,
             })
           }
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 backdrop-blur transition-colors hover:bg-white"
+          className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 backdrop-blur transition-colors hover:bg-white sm:right-3 sm:top-3"
         >
           <Heart
             className={cn(
@@ -141,16 +149,23 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
               inWishlist ? "fill-gold text-gold" : "text-charcoal"
             )}
           />
-        </button>
+        </motion.button>
 
         {!soldOut && (
-          <button
+          <motion.button
             type="button"
             onClick={handleQuickAdd}
-            className="absolute inset-x-3 bottom-3 flex translate-y-3 items-center justify-center gap-2 bg-charcoal py-3 text-xs font-medium uppercase tracking-widest text-white opacity-0 transition-all duration-300 hover:bg-gold hover:text-charcoal group-hover:translate-y-0 group-hover:opacity-100"
+            whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+            className={cn(
+              "absolute inset-x-2 bottom-2 flex items-center justify-center gap-2 bg-charcoal py-2.5 text-[10px] font-medium uppercase tracking-widest text-white transition-all duration-300 hover:bg-gold hover:text-charcoal sm:inset-x-3 sm:bottom-3 sm:py-3 sm:text-xs",
+              // Always visible on mobile (no hover); reveal on desktop hover
+              isMobile
+                ? "translate-y-0 opacity-100"
+                : "translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100"
+            )}
           >
-            <ShoppingBag className="h-4 w-4" /> Quick add
-          </button>
+            <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Quick add
+          </motion.button>
         )}
       </div>
 

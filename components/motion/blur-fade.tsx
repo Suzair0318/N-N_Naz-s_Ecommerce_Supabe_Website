@@ -2,6 +2,8 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
+import { easeOutExpo, useMotionProfile } from "@/lib/motion";
+
 interface BlurFadeProps {
   children: React.ReactNode;
   className?: string;
@@ -9,36 +11,46 @@ interface BlurFadeProps {
   duration?: number;
   yOffset?: number;
   inView?: boolean;
+  /** Soft blur — keep false on heavy mobile pages */
+  blur?: boolean;
 }
 
 /**
- * Blur-fade entrance inspired by 21st.dev / Magic UI Blur Fade.
- * Soft blur → crisp focus with a light upward drift.
+ * Entrance fade inspired by 21st.dev / Magic UI.
+ * Mobile: short slide + opacity only (no blur by default).
  */
 export function BlurFade({
   children,
   className,
   delay = 0,
-  duration = 0.55,
-  yOffset = 12,
+  duration,
+  yOffset,
   inView = true,
+  blur = false,
 }: BlurFadeProps) {
   const reduceMotion = useReducedMotion();
+  const profile = useMotionProfile();
+  const y = yOffset ?? profile.y;
+  const d = duration ?? profile.duration;
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>;
   }
 
   const variants: Variants = {
-    hidden: { opacity: 0, y: yOffset, filter: "blur(8px)" },
+    hidden: {
+      opacity: 0,
+      y,
+      ...(blur ? { filter: "blur(6px)" } : {}),
+    },
     visible: {
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
+      ...(blur ? { filter: "blur(0px)" } : {}),
       transition: {
         delay,
-        duration,
-        ease: [0.22, 1, 0.36, 1],
+        duration: d,
+        ease: easeOutExpo,
       },
     },
   };
@@ -50,7 +62,11 @@ export function BlurFade({
       {...(inView
         ? {
             whileInView: "visible",
-            viewport: { once: true, amount: 0.2, margin: "-40px" },
+            viewport: {
+              once: true,
+              amount: profile.viewportAmount,
+              margin: profile.viewportMargin,
+            },
           }
         : { animate: "visible" })}
       variants={variants}

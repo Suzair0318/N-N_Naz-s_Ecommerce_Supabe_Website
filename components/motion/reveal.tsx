@@ -2,6 +2,8 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
+import { easeOutExpo, useMotionProfile } from "@/lib/motion";
+
 type Direction = "up" | "down" | "left" | "right" | "none";
 
 interface RevealProps {
@@ -12,6 +14,7 @@ interface RevealProps {
   /** Stagger index when used as a child of StaggerReveal */
   index?: number;
   direction?: Direction;
+  /** Blur is off by default on mobile for GPU performance */
   blur?: boolean;
   duration?: number;
 }
@@ -32,22 +35,26 @@ function offsetFor(direction: Direction, distance: number) {
 }
 
 /**
- * Scroll reveal inspired by 21st.dev Reveal —
- * fades, un-blurs, and slides content into view.
+ * Scroll reveal (21st.dev Scroll Reveal pattern) —
+ * mobile-first fade + slide; blur only when explicitly enabled.
  */
 export function Reveal({
   children,
   delay = 0,
-  y = 28,
+  y,
   className,
   index,
   direction = "up",
-  blur = true,
-  duration = 0.7,
+  blur,
+  duration,
 }: RevealProps) {
   const reduceMotion = useReducedMotion();
-  const offset = offsetFor(direction, y);
-  const staggerDelay = typeof index === "number" ? index * 0.08 : 0;
+  const profile = useMotionProfile();
+  const distance = y ?? profile.y;
+  const offset = offsetFor(direction, distance);
+  const staggerDelay = typeof index === "number" ? index * profile.stagger : 0;
+  const useBlur = blur === true;
+  const animDuration = duration ?? profile.duration;
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>;
@@ -58,17 +65,17 @@ export function Reveal({
       opacity: 0,
       x: offset.x,
       y: offset.y,
-      filter: blur ? "blur(8px)" : "blur(0px)",
+      ...(useBlur ? { filter: "blur(6px)" } : {}),
     },
     show: {
       opacity: 1,
       x: 0,
       y: 0,
-      filter: "blur(0px)",
+      ...(useBlur ? { filter: "blur(0px)" } : {}),
       transition: {
-        duration,
+        duration: animDuration,
         delay: delay + staggerDelay,
-        ease: [0.22, 1, 0.36, 1],
+        ease: easeOutExpo,
       },
     },
   };
@@ -78,7 +85,11 @@ export function Reveal({
       variants={variants}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.2, margin: "-40px" }}
+      viewport={{
+        once: true,
+        amount: profile.viewportAmount,
+        margin: profile.viewportMargin,
+      }}
       className={className}
     >
       {children}

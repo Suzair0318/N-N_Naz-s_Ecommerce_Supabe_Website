@@ -76,7 +76,7 @@ export function ProductForm({
       featured: false,
       is_active: true,
       images: [],
-      variants: [{ size: "M", stock_quantity: 0 }],
+      variants: [{ size: "M", stock_quantity: 0, price_override: null }],
       ...defaultValues,
     },
   });
@@ -452,7 +452,9 @@ export function ProductForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ size: "M", stock_quantity: 0 })}
+            onClick={() =>
+              append({ size: "M", stock_quantity: 0, price_override: null })
+            }
           >
             <Plus className="h-4 w-4" /> Add variant
           </Button>
