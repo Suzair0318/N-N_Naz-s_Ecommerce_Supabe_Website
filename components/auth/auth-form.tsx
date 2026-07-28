@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Loader2 } from "lucide-react";
@@ -18,10 +18,17 @@ function withRedirect(href: string, redirect: string) {
   return `${href}?${params.toString()}`;
 }
 
+/** Only allow same-origin relative paths (prevents open redirects). */
+function safeRedirectPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/account";
+  }
+  return value;
+}
+
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/account";
+  const redirect = safeRedirectPath(searchParams.get("redirect"));
   const isCheckout = redirect.startsWith("/checkout");
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -35,12 +42,21 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
     try {
       if (mode === "register") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: fullName } },
         });
         if (error) throw error;
+
+        // Email confirmation may be required — only continue when a session exists.
+        if (!data.session) {
+          toast.success("Check your email", {
+            description: "Confirm your address, then sign in to continue.",
+          });
+          return;
+        }
+
         toast.success("Account created", {
           description: isCheckout
             ? "You're signed in — continuing to checkout."
@@ -52,19 +68,26 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           password,
         });
         if (error) throw error;
-        if (isCheckout) {
-          toast.success("Signed in", {
-            description: "Your bag is ready — continue to checkout.",
-          });
-        }
+
+        toast.success("Signed in", {
+          description: isCheckout
+            ? "Your bag is ready — continuing to checkout."
+            : "Welcome back.",
+        });
       }
-      router.push(redirect);
-      router.refresh();
+
+      // Wait until cookies are readable before hitting protected routes.
+      // Soft router.push races middleware and bounces back to /login.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Session not ready. Please try signing in again.");
+      }
+
+      window.location.assign(redirect);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Authentication failed"
       );
-    } finally {
       setLoading(false);
     }
   };
