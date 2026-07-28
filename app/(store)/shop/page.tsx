@@ -83,7 +83,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             filters.sort ?? "",
           ].join("|")}
           products={products}
-          className="grid-cols-2 lg:grid-cols-3"
           emptyMessage="No pieces match your filters. Try adjusting your selection."
         />
       </div>

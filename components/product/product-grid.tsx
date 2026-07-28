@@ -55,7 +55,10 @@ export function ProductGrid({
   };
 
   const gridClass = cn(
-    "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 sm:gap-y-10 md:grid-cols-3 lg:grid-cols-4",
+    // Mobile: 2 equal columns. Desktop: fixed-width tracks so cards
+    // stay compact even when only one product is shown.
+    "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 sm:gap-y-10",
+    "lg:[grid-template-columns:repeat(auto-fill,minmax(200px,240px))] lg:justify-start lg:gap-x-5 lg:gap-y-12",
     className
   );
 
