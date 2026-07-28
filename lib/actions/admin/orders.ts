@@ -68,3 +68,37 @@ export async function updatePaymentStatus(
   revalidatePath("/admin/orders");
   return { success: true };
 }
+
+export async function deleteOrders(
+  orderIds: string[]
+): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  if (!(await isCurrentUserAdmin())) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const ids = [...new Set(orderIds.filter(Boolean))];
+  if (ids.length === 0) {
+    return { success: false, error: "No orders selected" };
+  }
+
+  const supabase = createPrivilegedClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .delete()
+    .in("id", ids)
+    .select("id");
+
+  if (error) {
+    console.error("[admin] deleteOrders failed:", error.message);
+    return {
+      success: false,
+      error: "Could not delete order(s). Please try again.",
+    };
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/account");
+
+  return { success: true, deleted: data?.length ?? ids.length };
+}

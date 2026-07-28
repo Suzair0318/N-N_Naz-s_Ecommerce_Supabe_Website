@@ -175,21 +175,27 @@ export function Header({
           ))}
         </nav>
 
-        {/* Logo */}
+        {/* Brand */}
         <Link
           href="/"
-          className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-          aria-label="Naz's Collection — Home"
+          className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 sm:gap-3"
+          aria-label="N&N Naz's Collection — Home"
         >
-          <span className="relative block h-11 w-11 overflow-hidden rounded-full border border-gold/40 bg-charcoal shadow-sm sm:h-12 sm:w-12">
+          <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full border border-gold/40 bg-charcoal shadow-sm sm:h-11 sm:w-11">
             <Image
               src="/nazs-logo.png"
-              alt="Naz's Collection"
+              alt=""
               fill
               priority
-              sizes="48px"
+              sizes="44px"
+              quality={90}
               className="object-cover object-center"
             />
+          </span>
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="font-serif text-sm tracking-tight text-charcoal sm:text-base md:text-lg">
+              N&amp;N Naz&apos;s Collection
+            </span>
           </span>
         </Link>
 

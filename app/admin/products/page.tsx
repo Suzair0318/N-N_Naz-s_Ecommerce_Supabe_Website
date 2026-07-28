@@ -1,9 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { Pencil, Plus } from "lucide-react";
 
 import { DeleteProductButton } from "@/components/admin/delete-product-button";
+import { ProductsSearch } from "@/components/admin/products-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAdminProducts } from "@/lib/repositories/admin";
@@ -11,16 +12,23 @@ import { formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminProductsPage() {
-  const products = await getAdminProducts();
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
+  const q = searchParams.q?.trim() ?? "";
+  const products = await getAdminProducts(q);
 
   return (
     <div className="p-6 lg:p-10">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl tracking-tight">Products</h1>
           <p className="text-sm text-muted-foreground">
-            {products.length} products in your catalog.
+            {q
+              ? `${products.length} result${products.length === 1 ? "" : "s"} for “${q}”`
+              : `${products.length} products in your catalog.`}
           </p>
         </div>
         <Button asChild>
@@ -30,10 +38,16 @@ export default async function AdminProductsPage() {
         </Button>
       </div>
 
+      <Suspense fallback={null}>
+        <ProductsSearch initialQuery={q} />
+      </Suspense>
+
       <div className="border border-border bg-white">
         {products.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">
-            No products yet. Create your first product.
+            {q
+              ? `No products match “${q}”. Try another title, brand, category, or description.`
+              : "No products yet. Create your first product."}
           </p>
         ) : (
           <div className="overflow-x-auto">
