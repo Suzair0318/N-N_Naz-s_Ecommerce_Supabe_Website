@@ -102,15 +102,15 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
         Back
       </button>
 
-      <div className="grid w-full min-w-0 gap-10 lg:grid-cols-2">
+      <div className="grid w-full min-w-0 gap-8 lg:grid-cols-[minmax(0,26rem)_1fr] lg:items-start lg:gap-12 xl:grid-cols-[minmax(0,28rem)_1fr]">
         {/* Gallery */}
         <motion.div
-          className="flex w-full min-w-0 flex-col gap-4"
+          className="mx-auto flex w-full min-w-0 max-w-md flex-col gap-4 lg:mx-0 lg:max-w-none"
           initial={reduceMotion ? false : { opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
+          <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted lg:max-h-[min(72vh,560px)] lg:aspect-auto lg:h-[min(72vh,560px)]">
             <AnimatePresence mode="wait">
               {images[activeImage].image_url ? (
                 <motion.div
@@ -134,7 +134,7 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
                     alt={product.title}
                     fill
                     priority
-                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    sizes="(max-width: 1024px) 100vw, 448px"
                     className="object-contain"
                   />
                 </motion.div>
