@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, UploadCloud, X } from "lucide-react";
@@ -89,6 +89,11 @@ export function ProductForm({
 
   const images = watch("images");
   const title = watch("title");
+
+  // Slug always follows the title — users cannot edit it manually.
+  useEffect(() => {
+    setValue("slug", slugify(title || ""), { shouldValidate: true });
+  }, [title, setValue]);
 
   const handleCreateCategory = async () => {
     const name = newCategoryName.trim();
@@ -187,9 +192,6 @@ export function ProductForm({
             <Label>Title</Label>
             <Input
               {...register("title")}
-              onBlur={(e) => {
-                if (!watch("slug")) setValue("slug", slugify(e.target.value));
-              }}
               placeholder="Silk Slip Midi Dress"
             />
             {errors.title && (
@@ -198,17 +200,16 @@ export function ProductForm({
           </div>
           <div className="space-y-1.5">
             <Label>Slug</Label>
-            <div className="flex gap-2">
-              <Input {...register("slug")} placeholder="silk-slip-midi-dress" />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setValue("slug", slugify(title))}
-              >
-                Auto
-              </Button>
-            </div>
+            <Input
+              {...register("slug")}
+              readOnly
+              tabIndex={-1}
+              placeholder="auto-from-title"
+              className="cursor-not-allowed bg-muted/50 text-muted-foreground"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Generated automatically from the title.
+            </p>
             {errors.slug && (
               <p className="text-xs text-destructive">{errors.slug.message}</p>
             )}
