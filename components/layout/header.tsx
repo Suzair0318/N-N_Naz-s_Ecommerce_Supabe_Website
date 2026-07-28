@@ -181,15 +181,15 @@ export function Header({
           className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 sm:gap-3"
           aria-label="N&N Naz's Collection — Home"
         >
-          <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full border border-gold/40 bg-charcoal shadow-sm sm:h-11 sm:w-11">
+          <span className="relative block h-9 w-[4.25rem] shrink-0 overflow-hidden sm:h-10 sm:w-[5.25rem]">
             <Image
               src="/nazs-logo.png"
               alt=""
               fill
               priority
-              sizes="44px"
-              quality={90}
-              className="object-cover object-center"
+              sizes="84px"
+              quality={95}
+              className="object-contain object-center"
             />
           </span>
           <span className="flex min-w-0 flex-col leading-tight">

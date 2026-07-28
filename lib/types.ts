@@ -10,6 +10,11 @@ export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
+/** Homepage category card with active product count. */
+export type StorefrontCategory = Category & {
+  productCount: number;
+};
+
 export interface ProductWithRelations extends Product {
   category: Pick<Category, "id" | "name" | "slug"> | null;
   images: ProductImage[];
