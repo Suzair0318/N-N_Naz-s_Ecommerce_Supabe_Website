@@ -4,12 +4,47 @@ import { revalidatePath } from "next/cache";
 
 import { isCurrentUserAdmin } from "@/lib/auth";
 import { createPrivilegedClient } from "@/lib/supabase/server";
+import { slugify } from "@/lib/utils";
 import { productSchema, type ProductFormValues } from "@/lib/validators/product";
 
 interface ActionResult {
   success: boolean;
   productId?: string;
   error?: string;
+}
+
+/**
+ * Builds a URL slug from the title and appends -2, -3, … if taken.
+ * When editing, the current product’s own slug is allowed to stay.
+ */
+async function ensureUniqueProductSlug(
+  supabase: ReturnType<typeof createPrivilegedClient>,
+  title: string,
+  excludeProductId?: string
+): Promise<string> {
+  const base = slugify(title) || "product";
+
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    let query = supabase
+      .from("products")
+      .select("id")
+      .eq("slug", candidate)
+      .limit(1);
+
+    if (excludeProductId) {
+      query = query.neq("id", excludeProductId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      console.error("[admin] slug uniqueness check failed:", error.message);
+      return `${base}-${Date.now().toString(36)}`;
+    }
+    if (!data) return candidate;
+  }
+
+  return `${base}-${Date.now().toString(36)}`;
 }
 
 async function persistImagesAndVariants(
@@ -57,12 +92,13 @@ export async function createProduct(
   }
   const data = parsed.data;
   const supabase = createPrivilegedClient();
+  const slug = await ensureUniqueProductSlug(supabase, data.title);
 
   const { data: product, error } = await supabase
     .from("products")
     .insert({
       title: data.title,
-      slug: data.slug,
+      slug,
       description: data.description ?? null,
       brand_name: data.brand_name,
       weight: data.weight ?? null,
@@ -79,9 +115,7 @@ export async function createProduct(
     console.error("[admin] createProduct failed:", error?.message);
     return {
       success: false,
-      error: error?.message.includes("duplicate")
-        ? "A product with this slug already exists"
-        : "Could not create product",
+      error: "Could not create product",
     };
   }
 
@@ -106,12 +140,17 @@ export async function updateProduct(
   }
   const data = parsed.data;
   const supabase = createPrivilegedClient();
+  const slug = await ensureUniqueProductSlug(
+    supabase,
+    data.title,
+    productId
+  );
 
   const { error } = await supabase
     .from("products")
     .update({
       title: data.title,
-      slug: data.slug,
+      slug,
       description: data.description ?? null,
       brand_name: data.brand_name,
       weight: data.weight ?? null,
@@ -131,7 +170,7 @@ export async function updateProduct(
   await persistImagesAndVariants(supabase, productId, data);
 
   revalidatePath("/admin/products");
-  revalidatePath(`/product/${data.slug}`);
+  revalidatePath(`/product/${slug}`);
   revalidatePath("/shop");
   return { success: true, productId };
 }

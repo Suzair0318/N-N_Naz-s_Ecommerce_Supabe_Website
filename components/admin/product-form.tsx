@@ -208,9 +208,10 @@ export function ProductForm({
               className="cursor-not-allowed bg-muted/50 text-muted-foreground"
             />
             <p className="text-[11px] text-muted-foreground">
-              Generated automatically from the title.
+              Generated from the title. If the same title already exists, a
+              unique ending like -2 is added automatically.
             </p>
-            {errors.slug && (
+            {errors.slug && title.trim().length < 2 && (
               <p className="text-xs text-destructive">{errors.slug.message}</p>
             )}
           </div>
