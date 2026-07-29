@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -69,6 +70,9 @@ export default async function AdminProductsPage({
                     (sum, v) => sum + v.stock_quantity,
                     0
                   );
+                  const thumb = [...(product.images ?? [])].sort(
+                    (a, b) => a.display_order - b.display_order
+                  )[0]?.image_url;
                   return (
                     <tr
                       key={product.id}
@@ -76,7 +80,17 @@ export default async function AdminProductsPage({
                     >
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-10 shrink-0 bg-muted" />
+                          <div className="relative h-12 w-10 shrink-0 overflow-hidden bg-muted">
+                            {thumb ? (
+                              <Image
+                                src={thumb}
+                                alt={product.title}
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                              />
+                            ) : null}
+                          </div>
                           <div>
                             <div className="font-medium">{product.title}</div>
                             <div className="text-xs text-muted-foreground">

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Order, Product, ProductVariant } from "@/lib/types";
+import type { Order, Product, ProductImage, ProductVariant } from "@/lib/types";
 
 export interface DashboardMetrics {
   totalSales: number;
@@ -98,6 +98,7 @@ export async function getAllOrders(search?: string): Promise<Order[]> {
 export type AdminProductRow = Product & {
   category: { name: string } | null;
   variants: Pick<ProductVariant, "stock_quantity">[];
+  images: Pick<ProductImage, "image_url" | "display_order">[];
 };
 
 export async function getAdminProducts(
@@ -109,7 +110,7 @@ export async function getAdminProducts(
   let query = supabase
     .from("products")
     .select(
-      "*, category:categories(name), variants:product_variants(stock_quantity)"
+      "*, category:categories(name), variants:product_variants(stock_quantity), images:product_images(image_url, display_order)"
     )
     .order("created_at", { ascending: false });
 
