@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Heart, Minus, Plus, ShoppingBag } from "lucide-react";
@@ -56,6 +56,27 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
     product.base_price
   );
   const maxStock = selectedVariant?.stock_quantity ?? 0;
+  const sizeSelected = Boolean(selectedVariant);
+  const canAdjustQty = sizeSelected && maxStock > 0;
+  const canIncreaseQty = canAdjustQty && quantity < maxStock;
+
+  // Keep quantity within the selected size’s stock (and reset when size changes).
+  useEffect(() => {
+    if (!selectedVariant) {
+      setQuantity(1);
+      return;
+    }
+    const stock = selectedVariant.stock_quantity;
+    if (stock <= 0) {
+      setQuantity(1);
+      return;
+    }
+    setQuantity((q) => Math.min(Math.max(1, q), stock));
+  }, [selectedVariant]);
+
+  const handleSelectSize = (size: string) => {
+    setSelectedSize(size);
+  };
 
   const handleAddToBag = () => {
     if (!selectedSize) {
@@ -207,15 +228,22 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
             <SizeSelector
               options={sizeOptions}
               selected={selectedSize}
-              onSelect={setSelectedSize}
+              onSelect={handleSelectSize}
             />
           </div>
 
           {/* Quantity + Add to bag */}
           <div className="mt-8 flex w-full min-w-0 flex-wrap items-stretch gap-3">
-            <div className="flex h-14 shrink-0 items-center border border-charcoal/20">
+            <div
+              className={cn(
+                "flex h-14 shrink-0 items-center border border-charcoal/20",
+                !canAdjustQty && "opacity-50"
+              )}
+            >
               <button
-                className="flex h-full w-11 items-center justify-center transition-colors hover:bg-muted"
+                type="button"
+                className="flex h-full w-11 items-center justify-center transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                disabled={!canAdjustQty || quantity <= 1}
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 aria-label="Decrease quantity"
               >
@@ -225,9 +253,16 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
                 {quantity}
               </span>
               <button
-                className="flex h-full w-11 items-center justify-center transition-colors hover:bg-muted disabled:opacity-40"
-                disabled={maxStock > 0 && quantity >= maxStock}
-                onClick={() => setQuantity((q) => q + 1)}
+                type="button"
+                className="flex h-full w-11 items-center justify-center transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                disabled={!canIncreaseQty}
+                onClick={() => {
+                  if (!sizeSelected) {
+                    toast.error("Please select a size first");
+                    return;
+                  }
+                  setQuantity((q) => Math.min(q + 1, maxStock));
+                }}
                 aria-label="Increase quantity"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -263,6 +298,11 @@ export function ProductDetail({ product }: { product: ProductWithRelations }) {
             </Button>
           </div>
 
+          {!sizeSelected && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Select a size to choose quantity.
+            </p>
+          )}
           {selectedVariant && maxStock > 0 && maxStock <= 3 && (
             <p className="mt-3 text-xs text-gold-dark">
               Only {maxStock} left — order soon
