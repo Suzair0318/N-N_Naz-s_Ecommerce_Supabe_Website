@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
@@ -159,14 +160,26 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                   />
                 </td>
                 <td className="p-4 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete ${order.order_number}`}
-                    onClick={() => setPendingDeleteIds([order.id])}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`View ${order.order_number}`}
+                    >
+                      <Link href={`/admin/orders/${order.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${order.order_number}`}
+                      onClick={() => setPendingDeleteIds([order.id])}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}

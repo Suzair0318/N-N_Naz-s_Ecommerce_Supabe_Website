@@ -3,12 +3,18 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 import { ProductForm } from "@/components/admin/product-form";
+import {
+  getAdminProductBrands,
+} from "@/lib/repositories/admin";
 import { getCategories } from "@/lib/repositories/categories";
 
 export const metadata = { title: "New Product" };
 
 export default async function NewProductPage() {
-  const categories = await getCategories();
+  const [categories, brands] = await Promise.all([
+    getCategories(),
+    getAdminProductBrands(),
+  ]);
 
   return (
     <div className="p-6 lg:p-10">
@@ -21,6 +27,7 @@ export default async function NewProductPage() {
       <h1 className="mb-8 font-serif text-3xl tracking-tight">New Product</h1>
       <ProductForm
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        brands={brands}
       />
     </div>
   );

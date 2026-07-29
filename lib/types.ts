@@ -31,7 +31,11 @@ export interface ProductCardData extends Product {
 
 export interface OrderWithItems extends Order {
   items: (OrderItem & {
-    product: Pick<Product, "title" | "slug"> | null;
+    product:
+      | (Pick<Product, "title" | "slug"> & {
+          images?: Pick<ProductImage, "image_url" | "display_order">[];
+        })
+      | null;
     variant: Pick<ProductVariant, "size"> | null;
   })[];
 }

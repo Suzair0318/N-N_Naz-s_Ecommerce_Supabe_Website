@@ -38,12 +38,23 @@ interface CategoryOption {
 
 interface ProductFormProps {
   categories: CategoryOption[];
+  brands?: string[];
   productId?: string;
   defaultValues?: Partial<ProductFormValues>;
 }
 
+function mergeBrandList(initial: string[], current?: string | null) {
+  const brands = new Set(
+    initial.map((b) => b.trim()).filter(Boolean)
+  );
+  const cur = current?.trim();
+  if (cur) brands.add(cur);
+  return Array.from(brands).sort((a, b) => a.localeCompare(b));
+}
+
 export function ProductForm({
   categories: initialCategories,
+  brands: initialBrands = [],
   productId,
   defaultValues,
 }: ProductFormProps) {
@@ -51,9 +62,14 @@ export function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [categories, setCategories] =
     useState<CategoryOption[]>(initialCategories);
+  const [brands, setBrands] = useState(() =>
+    mergeBrandList(initialBrands, defaultValues?.brand_name)
+  );
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [addingBrand, setAddingBrand] = useState(false);
+  const [newBrandName, setNewBrandName] = useState("");
 
   const {
     register,
@@ -127,6 +143,38 @@ export function ProductForm({
     } finally {
       setCreatingCategory(false);
     }
+  };
+
+  const handleCreateBrand = () => {
+    const name = newBrandName.trim().replace(/\s+/g, " ");
+    if (!name) {
+      toast.error("Enter a brand name");
+      return;
+    }
+    if (name.length > 120) {
+      toast.error("Keep brand names under 120 characters");
+      return;
+    }
+
+    const existing = brands.find(
+      (b) => b.toLowerCase() === name.toLowerCase()
+    );
+    const resolved = existing ?? name;
+
+    if (!existing) {
+      setBrands((prev) =>
+        [...prev, name].sort((a, b) => a.localeCompare(b))
+      );
+    }
+
+    setValue("brand_name", resolved, { shouldValidate: true });
+    setNewBrandName("");
+    setAddingBrand(false);
+    toast.success(
+      existing
+        ? `Brand “${resolved}” selected`
+        : `Brand “${resolved}” ready`
+    );
   };
 
   const handleImageUpload = async (files: FileList | null) => {
@@ -220,11 +268,85 @@ export function ProductForm({
             <Textarea {...register("description")} rows={4} />
           </div>
           <div className="space-y-1.5">
-            <Label>Brand name</Label>
-            <Input
-              {...register("brand_name")}
-              placeholder="e.g. Zara, H&M, Local Brand"
-            />
+            <div className="flex items-center justify-between gap-2">
+              <Label>Brand name</Label>
+              {!addingBrand && (
+                <button
+                  type="button"
+                  onClick={() => setAddingBrand(true)}
+                  className="text-xs uppercase tracking-wide text-muted-foreground hover:text-charcoal"
+                >
+                  + New brand
+                </button>
+              )}
+            </div>
+
+            {addingBrand ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newBrandName}
+                  onChange={(e) => setNewBrandName(e.target.value)}
+                  placeholder="e.g. Khaadi, Nishat"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateBrand();
+                    }
+                    if (e.key === "Escape") {
+                      setAddingBrand(false);
+                      setNewBrandName("");
+                    }
+                  }}
+                />
+                <div className="flex gap-2">
+                  <Button type="button" onClick={handleCreateBrand}>
+                    Add
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setAddingBrand(false);
+                      setNewBrandName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Controller
+                control={control}
+                name="brand_name"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.length === 0 ? (
+                        <SelectItem value="__empty" disabled>
+                          No brands yet — add one
+                        </SelectItem>
+                      ) : (
+                        brands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Pick an existing brand, or add a new one for future products.
+            </p>
             {errors.brand_name && (
               <p className="text-xs text-destructive">
                 {errors.brand_name.message}

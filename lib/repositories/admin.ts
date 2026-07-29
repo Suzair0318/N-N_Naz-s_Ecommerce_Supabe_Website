@@ -1,7 +1,13 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Order, Product, ProductImage, ProductVariant } from "@/lib/types";
+import type {
+  Order,
+  OrderWithItems,
+  Product,
+  ProductImage,
+  ProductVariant,
+} from "@/lib/types";
 
 export interface DashboardMetrics {
   totalSales: number;
@@ -95,6 +101,26 @@ export async function getAllOrders(search?: string): Promise<Order[]> {
   return data ?? [];
 }
 
+const ADMIN_ORDER_SELECT =
+  "*, items:order_items(*, product:products(title, slug, images:product_images(image_url, display_order)), variant:product_variants(size))";
+
+export async function getAdminOrderById(
+  orderId: string
+): Promise<OrderWithItems | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(ADMIN_ORDER_SELECT)
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[admin] getAdminOrderById failed:", error.message);
+    return null;
+  }
+  return (data as unknown as OrderWithItems) ?? null;
+}
+
 export type AdminProductRow = Product & {
   category: { name: string } | null;
   variants: Pick<ProductVariant, "stock_quantity">[];
@@ -144,6 +170,27 @@ export async function getAdminProducts(
     return [];
   }
   return (data as unknown as AdminProductRow[]) ?? [];
+}
+
+/** Distinct brand names across the catalog (admin product form). */
+export async function getAdminProductBrands(): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("brand_name")
+    .not("brand_name", "is", null);
+
+  if (error) {
+    console.error("[admin] getAdminProductBrands failed:", error.message);
+    return [];
+  }
+
+  const brands = new Set<string>();
+  for (const row of data ?? []) {
+    const name = row.brand_name?.trim();
+    if (name) brands.add(name);
+  }
+  return Array.from(brands).sort((a, b) => a.localeCompare(b));
 }
 
 export async function getAdminProductById(id: string) {

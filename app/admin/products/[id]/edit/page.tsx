@@ -4,8 +4,11 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { ProductForm } from "@/components/admin/product-form";
+import {
+  getAdminProductBrands,
+  getAdminProductById,
+} from "@/lib/repositories/admin";
 import { getCategories } from "@/lib/repositories/categories";
-import { getAdminProductById } from "@/lib/repositories/admin";
 import type { ProductImage, ProductVariant } from "@/lib/types";
 import type { ProductFormValues } from "@/lib/validators/product";
 
@@ -16,9 +19,10 @@ export default async function EditProductPage({
 }: {
   params: { id: string };
 }) {
-  const [product, categories] = await Promise.all([
+  const [product, categories, brands] = await Promise.all([
     getAdminProductById(params.id),
     getCategories(),
+    getAdminProductBrands(),
   ]);
 
   if (!product) notFound();
@@ -62,6 +66,7 @@ export default async function EditProductPage({
       </h1>
       <ProductForm
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        brands={brands}
         productId={typed.id}
         defaultValues={defaultValues}
       />
