@@ -1,5 +1,6 @@
 "use server";
 
+import { sendOrderEmails } from "@/lib/email/send-order-emails";
 import { resolveUnitPrice } from "@/lib/pricing";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import {
@@ -247,6 +248,9 @@ export async function placeOrder(
   }
 
   await syncOrderItemPricesFromCatalog(row.order_id);
+
+  // Customer + admin Gmail notifications (non-blocking for checkout).
+  await sendOrderEmails(row.order_id);
 
   return {
     success: true,
